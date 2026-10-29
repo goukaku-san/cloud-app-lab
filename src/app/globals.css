@@ -1,0 +1,74 @@
+@import "tailwindcss";
+
+/* デザイントークン: 手触りのある絵本調。暖色・柔らかい線。 */
+:root {
+  --cream: #fbf4e8;
+  --paper: #fffaf2;
+  --ink: #3b2f2f;
+  --ink-soft: #6f615c;
+  --terracotta: #c9704a;
+  --terracotta-deep: #9f5131;
+  --sage: #8fb996;
+  --sage-deep: #4f7a58;
+  --dusk: #5b6c8f;
+  --dusk-deep: #3f4c68;
+  --star: #f2d479;
+  --line: #e8dccb;
+}
+
+@theme inline {
+  --color-cream: var(--cream);
+  --color-paper: var(--paper);
+  --color-ink: var(--ink);
+  --color-ink-soft: var(--ink-soft);
+  --color-terracotta: var(--terracotta);
+  --color-terracotta-deep: var(--terracotta-deep);
+  --color-sage: var(--sage);
+  --color-sage-deep: var(--sage-deep);
+  --color-dusk: var(--dusk);
+  --color-dusk-deep: var(--dusk-deep);
+  --color-star: var(--star);
+  --color-line: var(--line);
+  --font-sans: "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Noto Sans JP", "Yu Gothic UI", "Yu Gothic", Meiryo, system-ui, sans-serif;
+}
+
+html {
+  background: var(--cream);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  -webkit-text-size-adjust: 100%;
+  overflow-wrap: anywhere;
+}
+
+/* 設定「文字を大きく」 */
+html.large-text {
+  font-size: 118%;
+}
+
+body {
+  min-height: 100dvh;
+}
+
+/* 軽いアニメーション。OS の設定か、アプリの設定「動きを減らす」で停止する。 */
+.anim-twinkle { animation: twinkle 3s ease-in-out infinite; }
+.anim-sway { transform-box: fill-box; transform-origin: top center; animation: sway 4s ease-in-out infinite; }
+.anim-steam { animation: steam 3s ease-in-out infinite; }
+.anim-meteor { animation: meteor 8s linear infinite; }
+.anim-fade-in { animation: fadeIn 500ms ease-out both; }
+
+@keyframes twinkle { 0%, 100% { opacity: 0.45; } 50% { opacity: 1; } }
+@keyframes sway { 0%, 100% { transform: rotate(-1.5deg); } 50% { transform: rotate(1.5deg); } }
+@keyframes steam { 0% { opacity: 0; transform: translateY(0); } 40% { opacity: 0.7; } 100% { opacity: 0; transform: translateY(-10px); } }
+@keyframes meteor { 0% { opacity: 0; transform: translate(0, 0); } 4% { opacity: 1; } 16% { opacity: 0; transform: translate(-50px, 26px); } 100% { opacity: 0; transform: translate(-50px, 26px); } }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .anim-twinkle, .anim-sway, .anim-steam, .anim-meteor, .anim-fade-in { animation: none !important; }
+}
+html.reduce-motion .anim-twinkle,
+html.reduce-motion .anim-sway,
+html.reduce-motion .anim-steam,
+html.reduce-motion .anim-meteor,
+html.reduce-motion .anim-fade-in {
+  animation: none !important;
+}
