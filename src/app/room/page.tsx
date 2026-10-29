@@ -8,6 +8,7 @@ import { Card, LinkButton, Loading, Note, PageShell } from "@/components/ui";
 import { ROOM_STAGES } from "@/game/content/roomStages";
 import { STORY_CHAPTERS } from "@/game/content/story";
 import { dayKeyOf } from "@/game/logic/time";
+import { seasonOf } from "@/game/logic/season";
 
 export default function RoomPage() {
   const ok = useRouteGuard({ active: "redirect" });
@@ -17,6 +18,7 @@ export default function RoomPage() {
   const { world, player } = state;
   const stage = ROOM_STAGES[world.roomStage];
   const todayKey = dayKeyOf(clock.now());
+  const season = seasonOf(clock.now());
   const returnsToday = state.sessions.filter(
     (s) => s.returnedAt && s.selfReport !== "skip" && dayKeyOf(new Date(s.returnedAt)) === todayKey,
   ).length;
@@ -26,9 +28,9 @@ export default function RoomPage() {
 
   return (
     <PageShell title={`${who}鏡の部屋`}>
-      {!state.previewSeen ? <PreviewOverlay avatar={player.avatar} onClose={markPreviewSeen} /> : null}
+      {!state.previewSeen ? <PreviewOverlay avatar={player.avatar} season={season} onClose={markPreviewSeen} /> : null}
       <div data-testid="room" data-growth={world.growth} data-stage={world.roomStage}>
-        <MirrorRoom stage={world.roomStage} objects={world.unlockedObjects} avatar={player.avatar} />
+        <MirrorRoom stage={world.roomStage} objects={world.unlockedObjects} avatar={player.avatar} season={season} />
       </div>
       <Card>
         <p className="text-lg font-bold" data-testid="room-stage">

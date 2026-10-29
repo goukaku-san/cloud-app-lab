@@ -33,7 +33,8 @@ npm run icons        # public/icons/icon.svg から PNG アイコンを再生成
 | `docs/02-screen-flow.md` | 画面遷移とガード |
 | `docs/03-data-model.md` | データ構造と永続化の抽象化 |
 | `docs/04-test-plan.md` | テスト計画（自動 / 手動） |
-| `docs/05-test-report.md` | テスト結果とデモ操作シナリオ |
+| `docs/05-test-report.md` | テスト結果、セキュリティ確認、デモ操作シナリオ |
+| `docs/06-release-prep.md` | 公開準備メモ（承認待ち。公開作業は未実施） |
 
 ## 設計上の約束（実装で担保しているもの）
 

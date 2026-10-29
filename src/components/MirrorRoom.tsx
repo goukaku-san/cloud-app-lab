@@ -2,6 +2,15 @@ import type { Ref } from "react";
 import type { AvatarConfig } from "@/game/types";
 import { AvatarFigure } from "@/components/Avatar";
 import { ROOM_STAGES } from "@/game/content/roomStages";
+import type { Season } from "@/game/logic/season";
+
+// 窓の外の丘の色（季節 × 昼夜）。段階 2 以上で見える。
+const HILL: Record<Season, [string, string]> = {
+  spring: ["#9ccf9a", "#2f4a3c"],
+  summer: ["#6fb57a", "#27402f"],
+  autumn: ["#d9a45b", "#4a3a2a"],
+  winter: ["#e9eef2", "#5a6470"],
+};
 
 // 鏡の部屋。段階（stage）と部屋に現れた物（objects）で描き分ける。時間では変わらない。
 const WALL = ["#e9e3da", "#f4e8d6", "#f6ead7", "#f7e3cc", "#e2d6c8", "#ddd0c4"];
@@ -33,9 +42,10 @@ export interface MirrorRoomProps {
   className?: string;
   svgRef?: Ref<SVGSVGElement>;
   idPrefix?: string;
+  season?: Season;
 }
 
-export function MirrorRoom({ stage, objects, avatar, label, className = "", svgRef, idPrefix = "room" }: MirrorRoomProps) {
+export function MirrorRoom({ stage, objects, avatar, label, className = "", svgRef, idPrefix = "room", season = "spring" }: MirrorRoomProps) {
   const s = Math.max(0, Math.min(WALL.length - 1, stage));
   const has = (id: string) => objects.includes(id);
   const night = s >= 4;
@@ -82,7 +92,28 @@ export function MirrorRoom({ stage, objects, avatar, label, className = "", svgR
 
       {/* 窓 */}
       <rect x="198" y="36" width="124" height="116" rx="6" fill={`url(#${skyId})`} />
-      {s >= 2 ? <path d="M198 128 Q236 98 268 122 Q296 104 322 124 L322 152 L198 152 Z" fill={night ? "#2f4a3c" : "#9ccf9a"} /> : null}
+      {s >= 2 ? <path d="M198 128 Q236 98 268 122 Q296 104 322 124 L322 152 L198 152 Z" fill={HILL[season][night ? 1 : 0]} /> : null}
+      {s >= 2 && season === "spring" ? (
+        <g>
+          {[[210, 60], [250, 52], [300, 66], [236, 84]].map(([x, y]) => (
+            <circle key={`p${x}`} cx={x} cy={y} r="2.5" fill="#f7c5d0" opacity="0.9" />
+          ))}
+        </g>
+      ) : null}
+      {s >= 2 && season === "autumn" ? (
+        <g>
+          {[[214, 70], [262, 58], [304, 76]].map(([x, y]) => (
+            <ellipse key={`l${x}`} cx={x} cy={y} rx="3.2" ry="2" fill="#d9772f" opacity="0.9" transform={`rotate(-30 ${x} ${y})`} />
+          ))}
+        </g>
+      ) : null}
+      {s >= 2 && season === "winter" ? (
+        <g>
+          {[[208, 50], [230, 72], [256, 46], [282, 66], [306, 50], [316, 86]].map(([x, y]) => (
+            <circle key={`w${x}`} cx={x} cy={y} r="1.8" fill="#ffffff" opacity="0.9" />
+          ))}
+        </g>
+      ) : null}
       {s === 3 ? <circle cx="292" cy="112" r="14" fill="#fff0b3" opacity="0.9" /> : null}
       {night
         ? STAR_POSITIONS.slice(0, has("star") ? STAR_POSITIONS.length : 3).map(([x, y], i) => (

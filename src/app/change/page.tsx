@@ -9,6 +9,7 @@ import { objectName, ROOM_STAGES } from "@/game/content/roomStages";
 import { CAPPED_NOTE, STORY_IS_DRAFT } from "@/game/content/story";
 import { REPORT_LABEL } from "@/game/content/labels";
 import { dayKeyOf } from "@/game/logic/time";
+import { seasonOf } from "@/game/logic/season";
 
 const subscribeNoop = () => () => {};
 
@@ -51,6 +52,7 @@ export default function ChangePage() {
   if (!ok || !state.player || !state.lastChange) return <Loading />;
   const change = state.lastChange;
   const world = state.world;
+  const season = seasonOf(clock.now());
   const beforeObjects = world.unlockedObjects.filter((id) => !change.newObjects.includes(id));
 
   const renderImage = async (): Promise<Blob> => {
@@ -121,6 +123,7 @@ export default function ChangePage() {
             objects={beforeObjects}
             avatar={state.player.avatar}
             idPrefix="before"
+            season={season}
             label={`前: ${ROOM_STAGES[change.beforeStage].name}`}
           />
         </figure>
@@ -132,6 +135,7 @@ export default function ChangePage() {
             objects={world.unlockedObjects}
             avatar={state.player.avatar}
             idPrefix="after"
+            season={season}
             label={`後: ${ROOM_STAGES[change.afterStage].name}`}
           />
         </figure>

@@ -9,7 +9,7 @@
 | --- | --- | --- |
 | 型検査 | `npm run typecheck` | 成功（エラー 0） |
 | Lint | `npm run lint` | 成功（エラー 0、警告 0） |
-| 単体テスト（Vitest） | `npm run test` | 8 ファイル / 37 件すべて成功 |
+| 単体テスト（Vitest） | `npm run test` | 9 ファイル / 38 件すべて成功 |
 | E2E（Playwright, 375×667, Chromium） | `npm run test:e2e` | 12 件すべて成功（本番ビルド `out/` を対象） |
 
 件数の内訳（数え方: 単体は `it()` の数、E2E は `test()` の数）:
@@ -24,6 +24,7 @@
 | `src/game/store/reducer.test.ts` | 5 | プレイヤー作成、出発→帰還、二重出発の防止、設定、リセット |
 | `src/game/content/questions.test.ts` | 4 | 30 問・数学中心・ID 重複なし、4 択と正答番号、監修前データの隔離、言語化選択肢の文言 |
 | `src/game/logic/quiz.test.ts` | 3 | 未回答優先、巡回、空データ |
+| `src/game/logic/season.test.ts` | 1 | 月から季節を決める（窓の外の四季） |
 
 ## 2. 必須受入テスト（設計書 14 章）との対応
 

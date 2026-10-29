@@ -5,11 +5,12 @@ import type { AvatarConfig } from "@/game/types";
 import { MirrorRoom } from "@/components/MirrorRoom";
 import { Button, Note } from "@/components/ui";
 import { objectsForGrowth, ROOM_STAGES, STAGE_THRESHOLDS } from "@/game/content/roomStages";
+import type { Season } from "@/game/logic/season";
 
 const PREVIEW_STAGE = 3;
 
 // 初回 3 分以内に「未来の部屋」を見せる。プレビューであることを明示し、成長点は付与しない。
-export function PreviewOverlay({ avatar, onClose }: { avatar: AvatarConfig; onClose: () => void }) {
+export function PreviewOverlay({ avatar, season, onClose }: { avatar: AvatarConfig; season: Season; onClose: () => void }) {
   const headingRef = useRef<HTMLHeadingElement>(null);
   useEffect(() => {
     headingRef.current?.focus();
@@ -37,6 +38,7 @@ export function PreviewOverlay({ avatar, onClose }: { avatar: AvatarConfig; onCl
             objects={objectsForGrowth(growth)}
             avatar={avatar}
             idPrefix="preview"
+            season={season}
             label={`プレビュー: ${ROOM_STAGES[PREVIEW_STAGE].name}`}
           />
         </div>
