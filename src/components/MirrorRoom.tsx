@@ -184,6 +184,62 @@ export function MirrorRoom({ stage, objects, avatar, label, className = "", svgR
         </g>
       ) : null}
 
+      {/* 教科の物（選んだ行動で部屋が一人ひとり違う形になる） */}
+      {has("subj-math") ? (
+        <g>
+          <rect x="122" y="56" width="44" height="34" rx="3" fill="#f2f6ff" stroke="#9fb3d9" strokeWidth="1.5" />
+          {[64, 72, 80].map((y) => (
+            <line key={`gh${y}`} x1="124" y1={y} x2="164" y2={y} stroke="#c6d4ee" strokeWidth="1" />
+          ))}
+          {[132, 142, 152].map((x) => (
+            <line key={`gv${x}`} x1={x} y1="58" x2={x} y2="88" stroke="#c6d4ee" strokeWidth="1" />
+          ))}
+          <path d="M126 86 Q140 60 162 70" stroke="#c9704a" strokeWidth="2" fill="none" />
+        </g>
+      ) : null}
+      {has("subj-english") ? (
+        <g transform="translate(236 140) rotate(-6)">
+          <rect x="0" y="0" width="22" height="14" rx="2" fill="#fff6e3" stroke="#d9b98a" />
+          <rect x="14" y="2" width="6" height="5" fill="#c9704a" />
+          <line x1="3" y1="9" x2="12" y2="9" stroke="#b89a7a" />
+        </g>
+      ) : null}
+      {has("subj-japanese") ? (
+        <g>
+          <rect x="88" y="168" width="18" height="9" rx="1" fill="#fffdf5" stroke="#cfc3b4" />
+          <line x1="92" y1="170" x2="92" y2="175" stroke="#3b2f2f" strokeWidth="1.5" />
+          <line x1="98" y1="166" x2="104" y2="178" stroke="#3b2f2f" strokeWidth="2" strokeLinecap="round" />
+        </g>
+      ) : null}
+      {has("subj-science") ? (
+        <g>
+          <rect x="26" y="130" width="46" height="4" fill="#8a6a4f" />
+          <path d="M40 112 L40 122 L34 130 L52 130 L46 122 L46 112 Z" fill="#dff3f1" stroke="#7fb0c8" strokeWidth="1.5" />
+          <rect x="37" y="124" width="12" height="5" fill="#8fb996" />
+        </g>
+      ) : null}
+      {has("subj-social") ? (
+        <g>
+          <circle cx="62" cy="120" r="8" fill="#9ccf9a" stroke="#5b6c8f" strokeWidth="1.5" />
+          <path d="M56 116 Q62 120 68 116 M55 123 Q62 127 69 123" stroke="#5b6c8f" strokeWidth="1" fill="none" />
+          <rect x="60" y="128" width="4" height="4" fill="#6b5e5a" />
+        </g>
+      ) : null}
+      {has("subj-review") ? (
+        <g>
+          <rect x="128" y="166" width="20" height="12" rx="1" fill="#f6e8c8" stroke="#b89a7a" />
+          <rect x="146" y="168" width="5" height="3" fill="#f4a9a0" />
+          <rect x="146" y="173" width="5" height="3" fill="#8fb996" />
+        </g>
+      ) : null}
+      {has("subj-custom") ? (
+        <g>
+          <rect x="190" y="166" width="10" height="12" rx="2" fill="#5b6c8f" />
+          <line x1="193" y1="166" x2="193" y2="158" stroke="#d9a441" strokeWidth="2" />
+          <line x1="197" y1="166" x2="197" y2="160" stroke="#c9704a" strokeWidth="2" />
+        </g>
+      ) : null}
+
       {/* 椅子とひざ掛け */}
       <rect x="84" y="132" width="52" height="60" rx="8" fill="#9c6b4b" />
       {has("blanket") ? <path d="M84 150 Q110 142 136 150 L136 184 Q110 192 84 184 Z" fill="#8fb996" /> : null}

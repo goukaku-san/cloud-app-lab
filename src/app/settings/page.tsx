@@ -33,7 +33,7 @@ function Switch({ label, checked, onChange, disabled, note }: { label: string; c
 
 export default function SettingsPage() {
   const ok = useRouteGuard({ active: "redirect" });
-  const { state, updateSettings, resetAll, persistent } = useGame();
+  const { state, updateSettings, resetAll, persistent, classroomClient } = useGame();
   const router = useRouter();
   const [confirm, setConfirm] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -90,6 +90,27 @@ export default function SettingsPage() {
         <LinkButton href="/about" className="mt-3 w-full">
           保護者の方・説明を読む
         </LinkButton>
+      </Card>
+      <Card>
+        <h2 className="font-bold">教室の星図（任意）</h2>
+        <p className="mt-1 text-sm">
+          {state.classroom ? `参加中の教室: ${state.classroom.code}` : "塾や学校の教室コードがあれば参加できます。塾に渡るのは教室全体の匿名の合計だけです。"}
+        </p>
+        <LinkButton href="/classroom" className="mt-3 w-full" variant={state.classroom ? "secondary" : "primary"}>
+          {state.classroom ? "教室の星を見る・抜ける" : "教室に参加する"}
+        </LinkButton>
+        <div className="mt-3">
+          <Switch
+            label="匿名の利用統計を送る（実験）"
+            checked={s.shareUsage}
+            onChange={(v) => updateSettings({ shareUsage: v })}
+            note={
+              classroomClient.mode === "http"
+                ? "送るのは日付・日替わりハッシュ・「開いた／帰還した」の事実だけ。個人は特定できません。"
+                : "この版は接続先がないため、ON にしても何も送られません。"
+            }
+          />
+        </div>
       </Card>
       <Card>
         <h2 className="font-bold">データの削除</h2>

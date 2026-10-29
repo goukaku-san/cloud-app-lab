@@ -1,6 +1,6 @@
 "use client";
 
-import { Card, PageShell } from "@/components/ui";
+import { Card, LinkButton, PageShell } from "@/components/ui";
 
 export default function AboutPage() {
   return (
@@ -34,6 +34,15 @@ export default function AboutPage() {
         <p className="mt-1 text-sm leading-relaxed">
           入力項目は任意のニックネームだけです。すべてのデータはこの端末のブラウザ内（IndexedDB）に保存され、サーバーへ送信しません。分析タグや第三者 SDK も入っていません。設定画面からいつでも完全に削除できます。
         </p>
+      </Card>
+      <Card>
+        <h2 className="font-bold">教室の星図（塾・学校との関わり）</h2>
+        <p className="mt-1 text-sm leading-relaxed">
+          塾や学校から教室コードを受け取った場合、本人の操作で任意に参加できます。参加すると、帰還のたびに「教室コード・日付・帰還 1 回という事実」の 3 つだけが送られ、教室全体の合計が星になります。ニックネーム、振り返りの文章、自己申告の種類、時間帯、端末を特定できる情報は送られません。塾に見えるのは教室全体の合計だけで、個人の記録は見えません。参加しなくても不利益はなく、いつでも抜けられます。
+        </p>
+        <LinkButton href="/juku" className="mt-3 w-full">
+          塾・教育機関の方へ
+        </LinkButton>
       </Card>
       <Card>
         <h2 className="font-bold">この版の状態</h2>

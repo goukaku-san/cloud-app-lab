@@ -1,5 +1,5 @@
 import type { ChangeSummary, SelfReport, Session, WorldState } from "@/game/types";
-import { objectsForGrowth, stageForGrowth } from "@/game/content/roomStages";
+import { objectsForGrowth, stageForGrowth, subjectObjectId } from "@/game/content/roomStages";
 import { STORY_CHAPTERS, storyFor } from "@/game/content/story";
 import { dayKeyOf, elapsedMinutes } from "@/game/logic/time";
 
@@ -56,6 +56,11 @@ export function applyReturn(world: WorldState, input: ReturnInput): ReturnResult
   if (report === "rest" && !storyFlags.firstRest) {
     storyFlags.firstRest = true;
     unlocked.add("blanket");
+  }
+  // 選んだ行動の教科ではじめて帰還した日に、その教科の物が現れる（やった／少しやった／休んだ のいずれでも）
+  if (report !== "skip") {
+    const subj = subjectObjectId(session.quest.subject);
+    if (subj) unlocked.add(subj);
   }
   const newObjects = [...unlocked].filter((id) => !world.unlockedObjects.includes(id));
 

@@ -274,6 +274,90 @@ test.describe("任意機能: 一問の魔法 / 星図（デモ）/ 音（実験�
   });
 });
 
+test.describe("教室の星図（モック: 通信なし）", () => {
+  test("参加 → 帰還で送信待ちが流れ、k 未満は表示されず、抜けると止まる", async ({ page, context, baseURL }) => {
+    const external: string[] = [];
+    context.on("request", (req) => {
+      const url = req.url();
+      if (url.startsWith("blob:") || url.startsWith("data:")) return;
+      if (!url.startsWith(baseURL ?? "")) external.push(url);
+    });
+    await page.goto("/intro/");
+    await page.getByRole("button", { name: "はじめる" }).click();
+    await page.getByRole("button", { name: "この姿にする" }).click();
+    await page.getByRole("button", { name: "自分の部屋へ" }).click();
+    await page.getByRole("link", { name: "設定" }).click();
+    await page.getByRole("link", { name: "教室に参加する" }).click();
+    await expect(page).toHaveURL(/\/classroom\/$/);
+    await expect(page.getByTestId("classroom-mock-label")).toBeVisible();
+    await expect(page.getByTestId("sent-fields").locator("li")).toHaveCount(3);
+    await expect(page.getByTestId("not-sent-fields")).toContainText("ニックネーム");
+    await page.screenshot({ path: "docs/screenshots/17-classroom-consent.png", fullPage: true, animations: "disabled" });
+
+    const join = page.getByTestId("join");
+    await page.getByRole("textbox", { name: /教室コード/ }).fill("abcd2345");
+    await expect(join).toBeDisabled(); // 同意のチェックが必要
+    await page.getByRole("checkbox").check();
+    await join.click();
+    await expect(page.getByTestId("joined-code")).toHaveText("ABCD-2345");
+    await expect(page.getByTestId("classroom-week-total")).toContainText("まだ表示できません");
+
+    // 帰還すると送信待ちに入り、モックで即時に流れる
+    await page.goto("/plan/");
+    await page.getByTestId("quest-0").click();
+    await page.getByTestId("depart").click();
+    await page.getByTestId("return").click();
+    await page.getByTestId("report-done").click();
+    await page.getByTestId("see-mirror").click();
+    await expect(page).toHaveURL(/\/change\/$/);
+    await page.goto("/classroom/");
+    await expect(page.getByTestId("outbox-status")).toHaveText("送信待ちはありません。");
+    await expect(page.getByTestId("classroom-week-total")).toContainText("まだ表示できません"); // 1 台では k 未満
+    const mock = await page.evaluate(() => localStorage.getItem("kagami-mock-classroom") ?? "");
+    expect(mock).toContain("ABCD-2345");
+    expect(mock).not.toMatch(/done|nickname|数学/);
+    await page.screenshot({ path: "docs/screenshots/18-classroom-joined.png", fullPage: true, animations: "disabled" });
+
+    // 星図は教室の星になる
+    await page.goto("/stars/");
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText("教室の星図");
+    await expect(page.getByTestId("stars-mock-label")).toBeVisible();
+
+    // 抜ける
+    await page.goto("/classroom/");
+    await page.getByTestId("leave").click();
+    await page.getByTestId("leave-confirm").click();
+    await expect(page.getByTestId("join")).toBeVisible();
+    await page.goto("/stars/");
+    await expect(page.getByTestId("stars-demo-label")).toBeVisible();
+    expect(external).toEqual([]);
+  });
+
+  test("架空の教室では合計が表示され、塾の画面は合計だけを出す", async ({ page }) => {
+    await page.goto("/intro/");
+    await page.getByRole("button", { name: "はじめる" }).click();
+    await page.getByRole("button", { name: "この姿にする" }).click();
+    await page.getByRole("button", { name: "自分の部屋へ" }).click();
+    await page.goto("/classroom/");
+    await page.getByRole("textbox", { name: /教室コード/ }).fill("DEMO-0000");
+    await page.getByRole("checkbox").check();
+    await page.getByTestId("join").click();
+    await expect(page.getByTestId("classroom-week-total")).toContainText(/帰還の合計: \d+ 回/);
+
+    await page.goto("/juku/");
+    await expect(page.getByTestId("juku-mock-label")).toBeVisible();
+    await page.getByTestId("juku-load").click();
+    await expect(page.getByTestId("juku-week-total")).toContainText(/\d+ 回/);
+    await expect(page.getByTestId("summary-table").locator("tbody tr")).toHaveCount(28);
+    // 表と合計に個人・内訳・順位が出ない（説明文の「出さない」という記述は除く）
+    await expect(page.getByTestId("summary-table")).not.toContainText(/ニックネーム|やった|休んだ|順位|ひとこと/);
+    await expect(page.getByTestId("summary-table").locator("thead")).toHaveText(/日付.*帰還の合計.*参加端末/);
+    await page.getByTestId("juku-create").click();
+    await expect(page.getByTestId("juku-created")).toContainText(/[A-Z0-9]{4}-[A-Z0-9]{4}/);
+    await page.screenshot({ path: "docs/screenshots/19-juku.png", fullPage: true, animations: "disabled" });
+  });
+});
+
 test.describe("アクセシビリティ（自動検査できる範囲）", () => {
   test("14-9 キーボードだけで導入→分身→部屋→プレビューを閉じるまで進める", async ({ page }) => {
     await page.goto("/intro/");
@@ -312,7 +396,7 @@ test.describe("アクセシビリティ（自動検査できる範囲）", () =>
     await page.getByRole("button", { name: "この姿にする" }).click();
     await page.getByRole("button", { name: "自分の部屋へ" }).click();
     await expect(page.getByRole("img", { name: /鏡の部屋/ })).toBeVisible();
-    for (const path of ["/plan/", "/log/", "/settings/", "/about/", "/avatar/", "/quiz/", "/stars/"]) {
+    for (const path of ["/plan/", "/log/", "/settings/", "/about/", "/avatar/", "/quiz/", "/stars/", "/classroom/", "/juku/"]) {
       await page.goto(path);
       await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
     }

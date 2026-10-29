@@ -48,7 +48,37 @@ export const ROOM_OBJECTS: RoomObjectDef[] = [
   { id: "lantern", name: "庭のランタン", unlockAt: 14 },
   { id: "meteor", name: "流れ星", unlockAt: 15 },
   { id: "blanket", name: "ひざ掛け（はじめて休んだ日に）", unlockAt: Number.POSITIVE_INFINITY },
+  // 選んだ行動の教科ではじめて帰還した日に現れる物（部屋が一人ひとり違う形になる）
+  { id: "subj-math", name: "壁の方眼紙（数学）", unlockAt: Number.POSITIVE_INFINITY },
+  { id: "subj-english", name: "窓辺の絵はがき（英語）", unlockAt: Number.POSITIVE_INFINITY },
+  { id: "subj-japanese", name: "机の上の筆と紙（国語）", unlockAt: Number.POSITIVE_INFINITY },
+  { id: "subj-science", name: "棚のフラスコ（理科）", unlockAt: Number.POSITIVE_INFINITY },
+  { id: "subj-social", name: "小さな地球儀（社会）", unlockAt: Number.POSITIVE_INFINITY },
+  { id: "subj-review", name: "ふせんだらけのノート（復習）", unlockAt: Number.POSITIVE_INFINITY },
+  { id: "subj-custom", name: "自分で選んだ鉛筆立て（自分で決めた行動）", unlockAt: Number.POSITIVE_INFINITY },
 ];
+
+/** 教科 → 部屋に現れる物。該当がなければ null（「どれでも」「休息」など）。 */
+export function subjectObjectId(subject: string): string | null {
+  switch (subject) {
+    case "数学":
+      return "subj-math";
+    case "英語":
+      return "subj-english";
+    case "国語":
+      return "subj-japanese";
+    case "理科":
+      return "subj-science";
+    case "社会":
+      return "subj-social";
+    case "復習":
+      return "subj-review";
+    case "自分で決めた":
+      return "subj-custom";
+    default:
+      return null;
+  }
+}
 
 export function objectsForGrowth(growth: number): string[] {
   return ROOM_OBJECTS.filter((o) => growth >= o.unlockAt).map((o) => o.id);

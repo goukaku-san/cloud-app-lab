@@ -40,9 +40,16 @@ interface Question {            // 学習問題（src/game/content/questions.ts 
 interface Attempt {             // 一問の魔法の記録（端末内のみ、順位・点数化しない）
   id: string; questionId: string; choiceIndex: number; correct: boolean; thinking?: string; at: string;
 }
+interface ClassroomMembership { code: string; joinedAt: string; consentVersion: string }  // 教室の星図（任意参加）
+interface OutboxItem {          // 送信待ち。内容は protocol.ts の 3 項目のみ
+  id: string; kind: 'return' | 'pulse'; dayKey: string; hash: string; code?: string; event?: 'open' | 'return';
+}
 interface GameState {
   version: 1; player: Player | null; world: WorldState; sessions: Session[]; attempts: Attempt[];
   activeSessionId: string | null; previewSeen: boolean; lastChange: ChangeSummary | null;
+  classroom: ClassroomMembership | null;
+  deviceSecret: string | null;   // 日替わりハッシュの元。端末の外には出さない
+  outbox: OutboxItem[]; lastPulseDay: string | null;
 }
 ```
 
@@ -57,6 +64,14 @@ interface GameState {
 | Question | `Question` | `reviewed` / `source` で監修前データを隔離。`Attempt` で回答を端末内に記録 |
 | Event | 未実装 | プライバシー審査前のため予約のみ |
 
+## 集計サーバーに送るもの（教室の星図）
+
+| 送る | 送らない |
+| --- | --- |
+| 教室コード、日付、「帰還 1 回」の事実（`src/game/classroom/protocol.ts` の 3 項目） | ニックネーム、ひとこと、自己申告の種類、経過時間、分身、一問の魔法の記録、恒久的な端末 ID |
+
+日替わりハッシュ = SHA-256(端末内の秘密値 : 日付)。翌日には別の値になり、名寄せできない。サーバーは当日分のハッシュだけを 1 日 3 回の上限判定に使い、前日より古い分は消す（`server/store.ts`）。
+
 ## 永続化と抽象化
 
 ```ts
@@ -69,4 +84,5 @@ interface StorageAdapter {
 
 - `IndexedDbStorage`: 本番。IndexedDB が使えない環境（プライベートモード等）では `MemoryStorage` にフォールバックし、画面に「この端末では保存できません」と表示する。
 - 将来の同期は `StorageAdapter` の実装追加で対応し、画面側は変更しない。
-- `version` フィールドでマイグレーションに備える。後から追加したフィールド（`attempts`, `soundVolume`）は読込時に `normalizeState` が補う。
+- `version` フィールドでマイグレーションに備える。後から追加したフィールド（`attempts`, `soundVolume`, `classroom`, `outbox` など）は読込時に `normalizeState` が補う。
+- 集計サーバー側の保存は `AggregateStore`（`MemoryStore` / `FileStore`）。本番規模では PostgreSQL 実装に差し替える。

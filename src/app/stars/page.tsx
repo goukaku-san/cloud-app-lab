@@ -2,19 +2,70 @@
 
 import { useGame } from "@/game/store/GameProvider";
 import { useRouteGuard } from "@/components/useRouteGuard";
-import { Card, Loading, Note, PageShell } from "@/components/ui";
+import { Card, LinkButton, Loading, Note, PageShell } from "@/components/ui";
 import { DEMO_PARTICIPANTS, DEMO_WEEKS, starPositions } from "@/game/content/starsDemo";
+import { useEffect, useState } from "react";
+import { ClassroomSky } from "@/components/ClassroomSky";
+import type { ClassroomSummary } from "@/game/classroom/protocol";
 
 // 共創の星図（第 2 段階のデモ）。表示はすべて架空データ。実ユーザーの集計は安全審査後。
 export default function StarsPage() {
   const ok = useRouteGuard({ active: "redirect" });
-  const { state } = useGame();
+  const { state, classroomClient } = useGame();
+  const [summary, setSummary] = useState<ClassroomSummary | null>(null);
+  const joinedCode = state.classroom?.code ?? null;
+  useEffect(() => {
+    if (!joinedCode) return;
+    let cancelled = false;
+    classroomClient
+      .getPublicSummary(joinedCode, 7)
+      .then((s) => {
+        if (!cancelled) setSummary(s);
+      })
+      .catch(() => {
+        if (!cancelled) setSummary(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [joinedCode, classroomClient, state.outbox.length]);
   if (!ok) return <Loading />;
 
   const demoTotal = DEMO_WEEKS.reduce((sum, w) => sum + w.actions, 0);
   const demoStars = starPositions(Math.min(160, Math.round(demoTotal / 5)));
   const mine = state.sessions.filter((s) => s.returnedAt && s.selfReport !== "skip").length;
   const myStars = starPositions(Math.min(30, mine), 99);
+
+  if (state.classroom) {
+    return (
+      <PageShell title="教室の星図" backHref="/room" backLabel="部屋">
+        {classroomClient.mode === "mock" ? (
+          <p className="rounded-xl bg-star/40 px-3 py-2 text-sm font-semibold" data-testid="stars-mock-label">
+            モック: 集計サーバーに接続していないため、合計は端末内で模擬しています。
+          </p>
+        ) : null}
+        <p className="text-sm">
+          教室 <strong className="font-mono tracking-wider">{state.classroom.code}</strong> / あなたの星: {mine} 個
+        </p>
+        {summary ? (
+          <>
+            <ClassroomSky summary={summary} label="教室の星空" extraStars={mine} />
+            <Card>
+              <p className="text-sm" data-testid="classroom-week-total">
+                {summary.weekSuppressedDays === 7
+                  ? `まだ表示できません。参加端末が ${summary.k} 台以上になった日から、合計が星になります。`
+                  : `この 7 日の教室の帰還: ${summary.weekTotal} 回（表示しない日が ${summary.weekSuppressedDays} 日）`}
+              </p>
+            </Card>
+          </>
+        ) : (
+          <Note role="status">教室の合計を読み込んでいます…</Note>
+        )}
+        <LinkButton href="/classroom">教室の設定</LinkButton>
+        <Note>白い星はあなたの帰還、黄色い星は教室全体の合計です。誰が何回かは誰にも分かりません。</Note>
+      </PageShell>
+    );
+  }
 
   return (
     <PageShell title="共創の星図" backHref="/room" backLabel="部屋">
@@ -52,8 +103,9 @@ export default function StarsPage() {
           ))}
         </ul>
       </Card>
+      <LinkButton href="/classroom">教室コードがあれば、本物の教室の星図に参加する</LinkButton>
       <Note>
-        この画面は第 2 段階の構想を見せるためのデモです。実際の参加者の行動を集計して公開するには、個別の成績・位置・学校名・チャットを一切含めない設計の安全審査が必要です。個人の順位や比較は、将来も表示しません。
+        この画面は構想を見せるためのデモです。本物の星図は、塾や学校の教室コードで任意参加し、教室全体の匿名の合計だけが星になります。個人の順位や比較は、将来も表示しません。
       </Note>
     </PageShell>
   );

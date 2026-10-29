@@ -14,6 +14,15 @@ npm run build        # 静的書き出し → out/
 npm run start        # out/ を http://127.0.0.1:3100 で配信（本番相当・PWA 有効）
 ```
 
+## 教室の星図（塾向け）を試す
+
+```bash
+npm run server                                   # 集計サーバー http://localhost:8787（JSON ファイル保存、開発用トークン dev-juku / dev-company）
+NEXT_PUBLIC_CLASSROOM_API=http://localhost:8787 npm run build && npm run start
+```
+
+接続先を設定しないビルドでは「モック」として動き、通信は一切行わない。塾向け画面は `/juku`、生徒の参加画面は `/classroom`。送られるのは教室コード・日付・「帰還 1 回」の 3 項目だけ（`src/game/classroom/protocol.ts`）。
+
 ## 検証
 
 ```bash
@@ -46,6 +55,7 @@ npm run icons        # public/icons/icon.svg から PNG アイコンを再生成
 - 第三者 SDK・分析タグ・Web フォントを使わない。Service Worker は同一オリジンのみをキャッシュする。
 - 行動の提案はルールベースで、アプリは AI と通信しない。同梱の学習問題は AI が下書きしたもので、監修前はデモ扱い。
 - 一問の魔法を解いても成長点は変わらず、順位や点数はつけない。
+- 教室の星図は任意参加。塾に渡るのは教室単位の匿名の合計だけで、参加端末が最小表示人数未満の日は合計も出ない。
 
 ## 構成
 

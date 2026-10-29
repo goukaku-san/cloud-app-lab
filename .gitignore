@@ -43,3 +43,6 @@ next-env.d.ts
 # tests
 /playwright-report
 /test-results
+
+# 集計サーバーの保存データ
+/server-data

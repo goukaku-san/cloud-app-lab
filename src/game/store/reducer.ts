@@ -4,6 +4,7 @@ import {
   DEFAULT_SETTINGS,
   type AvatarConfig,
   type GameState,
+  type OutboxItem,
   type Quest,
   type SelfReport,
   type Session,
@@ -17,12 +18,17 @@ export type GameAction =
   | { type: "hydrate"; state: GameState }
   | { type: "createPlayer"; id: string; nickname?: string; now: string }
   | { type: "setAvatar"; avatar: AvatarConfig }
-  | { type: "updateSettings"; patch: Partial<Omit<Settings, "notifications">> }
+  | { type: "updateSettings"; patch: Partial<Omit<Settings, "notifications">>; secretIfNeeded?: string }
   | { type: "markPreviewSeen" }
   | { type: "startSession"; id: string; quest: Quest; now: string }
   | { type: "returnSession"; report: SelfReport; reflection?: string; now: string }
   | { type: "recordAttempt"; id: string; questionId: string; choiceIndex: number; correct: boolean; now: string }
   | { type: "setAttemptThinking"; attemptId: string; thinking: string }
+  | { type: "joinClassroom"; code: string; secret: string; consentVersion: string; now: string }
+  | { type: "leaveClassroom" }
+  | { type: "outboxAdd"; item: OutboxItem }
+  | { type: "outboxRemove"; ids: string[] }
+  | { type: "markPulse"; dayKey: string }
   | { type: "reset" };
 
 /** 保存済みデータに後から追加したフィールドを補う（古い保存データとの互換）。 */
@@ -32,6 +38,10 @@ export function normalizeState(saved: GameState): GameState {
     ...base,
     ...saved,
     attempts: Array.isArray(saved.attempts) ? saved.attempts : [],
+    classroom: saved.classroom ?? null,
+    deviceSecret: saved.deviceSecret ?? null,
+    outbox: Array.isArray(saved.outbox) ? saved.outbox : [],
+    lastPulseDay: saved.lastPulseDay ?? null,
     player: saved.player
       ? { ...saved.player, settings: { ...DEFAULT_SETTINGS, ...saved.player.settings, notifications: false } }
       : null,
@@ -70,6 +80,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
           ...state.player,
           settings: { ...state.player.settings, ...action.patch, notifications: false },
         },
+        deviceSecret: state.deviceSecret ?? action.secretIfNeeded ?? null,
       };
 
     case "markPreviewSeen":
@@ -121,6 +132,27 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         ...state,
         attempts: state.attempts.map((a) => (a.id === action.attemptId ? { ...a, thinking: action.thinking.slice(0, 60) } : a)),
       };
+
+    case "joinClassroom":
+      if (!state.player) return state;
+      return {
+        ...state,
+        classroom: { code: action.code, joinedAt: action.now, consentVersion: action.consentVersion },
+        deviceSecret: state.deviceSecret ?? action.secret,
+      };
+
+    case "leaveClassroom":
+      // 同意の撤回: 以後送らない。送信待ちの帰還も捨てる
+      return { ...state, classroom: null, outbox: state.outbox.filter((o) => o.kind !== "return") };
+
+    case "outboxAdd":
+      return { ...state, outbox: [...state.outbox, action.item].slice(-200) };
+
+    case "outboxRemove":
+      return { ...state, outbox: state.outbox.filter((o) => !action.ids.includes(o.id)) };
+
+    case "markPulse":
+      return { ...state, lastPulseDay: action.dayKey };
 
     case "reset":
       return createInitialState();

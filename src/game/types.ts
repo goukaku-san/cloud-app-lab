@@ -15,7 +15,25 @@ export interface Settings {
   largeText: boolean;
   sound: boolean; // 実験機能: 端末内で合成する静かな環境音（初期 OFF）
   soundVolume: number; // 0〜1
+  shareUsage: boolean; // 本人 opt-in の匿名利用統計（初期 OFF。接続先がなければ何も送らない）
   notifications: false; // この版では通知を送らない
+}
+
+/** 教室の星図への参加（任意）。塾に渡るのは教室単位の匿名の合計だけ。 */
+export interface ClassroomMembership {
+  code: string;
+  joinedAt: string;
+  consentVersion: string;
+}
+
+/** 送信待ち。オフラインでも失わず、接続後に送る。内容は protocol.ts の 3 項目のみ。 */
+export interface OutboxItem {
+  id: string;
+  kind: "return" | "pulse";
+  dayKey: string;
+  hash: string;
+  code?: string; // kind: return のとき
+  event?: "open" | "return"; // kind: pulse のとき
 }
 
 export interface Player {
@@ -106,6 +124,10 @@ export interface GameState {
   activeSessionId: string | null;
   previewSeen: boolean;
   lastChange: ChangeSummary | null;
+  classroom: ClassroomMembership | null;
+  deviceSecret: string | null; // 日替わりハッシュの元。端末の外には出さない
+  outbox: OutboxItem[];
+  lastPulseDay: string | null;
 }
 
 export const DEFAULT_AVATAR: AvatarConfig = { hairStyle: 0, outfitColor: 0, companion: 0 };
@@ -115,6 +137,7 @@ export const DEFAULT_SETTINGS: Settings = {
   largeText: false,
   sound: false,
   soundVolume: 0.5,
+  shareUsage: false,
   notifications: false,
 };
 
@@ -140,5 +163,9 @@ export function createInitialState(): GameState {
     activeSessionId: null,
     previewSeen: false,
     lastChange: null,
+    classroom: null,
+    deviceSecret: null,
+    outbox: [],
+    lastPulseDay: null,
   };
 }

@@ -40,6 +40,30 @@ describe("gameReducer", () => {
     expect(s.player?.settings.notifications).toBe(false);
   });
 
+  it("教室に参加すると秘密値ができ、抜けると送信待ちの帰還も消える", () => {
+    let s = gameReducer(createInitialState(), { type: "createPlayer", id: "p1", now });
+    s = gameReducer(s, { type: "joinClassroom", code: "ABCD-2345", secret: "s".repeat(64), consentVersion: "2026-10-29", now });
+    expect(s.classroom?.code).toBe("ABCD-2345");
+    expect(s.deviceSecret).toBe("s".repeat(64));
+    s = gameReducer(s, { type: "outboxAdd", item: { id: "o1", kind: "return", dayKey: "2026-10-29", hash: "a".repeat(64), code: "ABCD-2345" } });
+    s = gameReducer(s, { type: "outboxAdd", item: { id: "o2", kind: "pulse", dayKey: "2026-10-29", hash: "a".repeat(64), event: "open" } });
+    expect(s.outbox).toHaveLength(2);
+    s = gameReducer(s, { type: "leaveClassroom" });
+    expect(s.classroom).toBeNull();
+    expect(s.outbox.map((o) => o.kind)).toEqual(["pulse"]);
+    s = gameReducer(s, { type: "outboxRemove", ids: ["o2"] });
+    expect(s.outbox).toHaveLength(0);
+  });
+
+  it("古い保存データに教室の項目がなくても補われる", () => {
+    const old = { ...createInitialState() } as Record<string, unknown>;
+    delete old.classroom;
+    delete old.outbox;
+    const s = gameReducer(createInitialState(), { type: "hydrate", state: old as never });
+    expect(s.classroom).toBeNull();
+    expect(s.outbox).toEqual([]);
+  });
+
   it("reset で初期状態に戻る", () => {
     let s = gameReducer(createInitialState(), { type: "createPlayer", id: "p1", now });
     s = gameReducer(s, { type: "markPreviewSeen" });

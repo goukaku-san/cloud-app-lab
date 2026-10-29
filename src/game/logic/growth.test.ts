@@ -118,6 +118,23 @@ describe("部屋の段階", () => {
   });
 });
 
+describe("自分だけの部屋（教科の物）", () => {
+  it("選んだ行動の教科ではじめて帰還すると、その教科の物が現れる", () => {
+    const first = run(createInitialWorld(), "partial", 1);
+    expect(first.change.newObjects).toContain("subj-math");
+    const again = run(first.world, "done", 2);
+    expect(again.change.newObjects).not.toContain("subj-math");
+  });
+
+  it("記録しない帰還では現れない。休息や「どれでも」には教科の物がない", () => {
+    const skip = run(createInitialWorld(), "skip", 1);
+    expect(skip.change.newObjects).toEqual([]);
+    const restQuest: Session = { ...makeSession(localIso(1)), quest: { id: "rest10", subject: "休息", title: "休息する", estimatedMinutes: 10, kind: "rest", difficulty: 1 } };
+    const rest = applyReturn(createInitialWorld(), { session: restQuest, report: "rest", returnedAt: localIso(1, 12, 10) });
+    expect(rest.change.newObjects.filter((o) => o.startsWith("subj-"))).toEqual([]);
+  });
+});
+
 describe("章と物語", () => {
   it("章は帰還した日数で進み、記録しない日は数えない", () => {
     let world = createInitialWorld();
