@@ -7,7 +7,8 @@ export function SwRegister() {
   useEffect(() => {
     if (process.env.NODE_ENV !== "production") return;
     if (typeof navigator === "undefined" || !("serviceWorker" in navigator)) return;
-    navigator.serviceWorker.register("/sw.js").catch(() => {
+    const base = process.env.NEXT_PUBLIC_BASE_PATH?.replace(/\/+$/, "") || "";
+    navigator.serviceWorker.register(`${base}/sw.js`, { scope: `${base}/` }).catch(() => {
       // 登録できなくてもアプリは動く（オフライン対応だけが無効になる）
     });
   }, []);

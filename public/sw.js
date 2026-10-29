@@ -4,7 +4,9 @@
  * - ハッシュ付きの _next/static はキャッシュ優先（内容が変わればファイル名も変わる）。
  * - CACHE_VERSION を上げると古いキャッシュを捨てる。
  */
-const CACHE_VERSION = "kagami-v1";
+const CACHE_VERSION = "kagami-v2";
+// 配信先の基点（例: "/" や "/cloud-app-lab/"）。登録時のスコープから求める
+const BASE = new URL(self.registration.scope).pathname.replace(/\/+$/, "") + "/";
 const SHELL = [
   "/",
   "/intro/",
@@ -23,7 +25,7 @@ const SHELL = [
   "/about/",
   "/manifest.webmanifest",
   "/icons/icon.svg",
-];
+].map((p) => BASE + p.replace(/^\//, ""));
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
@@ -53,7 +55,7 @@ self.addEventListener("fetch", (event) => {
   const url = new URL(req.url);
   if (!isSameOrigin(url)) return; // 外部リクエストには関与しない（存在しないはず）
 
-  if (url.pathname.startsWith("/_next/static/")) {
+  if (url.pathname.startsWith(BASE + "_next/static/")) {
     event.respondWith(
       caches.match(req).then(
         (hit) =>
@@ -82,7 +84,7 @@ self.addEventListener("fetch", (event) => {
         const hit = await caches.match(req, { ignoreSearch: true });
         if (hit) return hit;
         if (req.mode === "navigate") {
-          const shell = await caches.match("/");
+          const shell = await caches.match(BASE);
           if (shell) return shell;
         }
         return new Response("オフラインです。接続後にもう一度開いてください。", {

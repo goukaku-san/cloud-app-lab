@@ -5,8 +5,11 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "out");
+// SERVE_ROOT を指定すると別のディレクトリを配信できる（サブパス配信の確認用）
+const root = process.env.SERVE_ROOT ? path.resolve(process.env.SERVE_ROOT) : path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "out");
 const port = Number(process.argv[2] ?? 3100);
+// HOST=0.0.0.0 にすると同じ Wi-Fi のスマホからも開ける（PC の IP アドレスでアクセス）
+const host = process.env.HOST ?? "127.0.0.1";
 
 const types = {
   ".html": "text/html; charset=utf-8",
@@ -49,6 +52,6 @@ http
     });
     fs.createReadStream(file).pipe(res);
   })
-  .listen(port, "127.0.0.1", () => {
-    console.log(`serving ${root} at http://127.0.0.1:${port}/`);
+  .listen(port, host, () => {
+    console.log(`serving ${root} at http://${host}:${port}/`);
   });

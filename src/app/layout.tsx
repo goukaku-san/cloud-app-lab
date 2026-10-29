@@ -5,15 +5,20 @@ import { GameProvider } from "@/game/store/GameProvider";
 import { SwRegister } from "@/components/SwRegister";
 import { SoundController } from "@/components/SoundController";
 
+const base = process.env.NEXT_PUBLIC_BASE_PATH?.replace(/\/+$/, "") || "";
+
 export const metadata: Metadata = {
   title: "受験生の鏡",
   description: "閉じるほど、物語が動き出す。",
   applicationName: "受験生の鏡",
-  manifest: "/manifest.webmanifest",
+  manifest: `${base}/manifest.webmanifest`,
   appleWebApp: { capable: true, statusBarStyle: "default", title: "受験生の鏡" },
   icons: {
-    icon: [{ url: "/icons/icon.svg", type: "image/svg+xml" }, { url: "/icons/icon-192.png", sizes: "192x192" }],
-    apple: [{ url: "/icons/icon-180.png", sizes: "180x180" }],
+    icon: [
+      { url: `${base}/icons/icon.svg`, type: "image/svg+xml" },
+      { url: `${base}/icons/icon-192.png`, sizes: "192x192" },
+    ],
+    apple: [{ url: `${base}/icons/icon-180.png`, sizes: "180x180" }],
   },
 };
 
