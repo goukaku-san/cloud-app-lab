@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useRef, useState, useSyncExternalStore } from "react";
 import { useGame } from "@/game/store/GameProvider";
 import { useRouteGuard } from "@/components/useRouteGuard";
 import { MirrorRoom } from "@/components/MirrorRoom";
@@ -9,6 +9,19 @@ import { objectName, ROOM_STAGES } from "@/game/content/roomStages";
 import { CAPPED_NOTE, STORY_IS_DRAFT } from "@/game/content/story";
 import { REPORT_LABEL } from "@/game/content/labels";
 import { dayKeyOf } from "@/game/logic/time";
+
+const subscribeNoop = () => () => {};
+
+function detectFileShare(): boolean {
+  const nav = navigator as Navigator & { canShare?: (data: ShareData) => boolean };
+  try {
+    if (typeof nav.share !== "function" || typeof nav.canShare !== "function") return false;
+    const probe = new File([new Blob([""], { type: "image/png" })], "probe.png", { type: "image/png" });
+    return nav.canShare({ files: [probe] });
+  } catch {
+    return false;
+  }
+}
 
 async function svgToImage(svg: SVGSVGElement): Promise<HTMLImageElement> {
   const xml = new XMLSerializer().serializeToString(svg);
@@ -32,15 +45,16 @@ export default function ChangePage() {
   const beforeRef = useRef<SVGSVGElement>(null);
   const afterRef = useRef<SVGSVGElement>(null);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
+  // Web Share API（ファイル共有）に対応した端末でだけ共有ボタンを出す。共有は本人の明示操作のみ。
+  const canShare = useSyncExternalStore(subscribeNoop, detectFileShare, () => false);
 
   if (!ok || !state.player || !state.lastChange) return <Loading />;
   const change = state.lastChange;
   const world = state.world;
   const beforeObjects = world.unlockedObjects.filter((id) => !change.newObjects.includes(id));
 
-  const saveImage = async () => {
-    try {
-      if (!beforeRef.current || !afterRef.current) throw new Error("no svg");
+  const renderImage = async (): Promise<Blob> => {
+    if (!beforeRef.current || !afterRef.current) throw new Error("no svg");
       const [a, b] = await Promise.all([svgToImage(beforeRef.current), svgToImage(afterRef.current)]);
       const w = 360;
       const h = 300;
@@ -63,6 +77,12 @@ export default function ChangePage() {
       ctx.fillText("受験生の鏡 — 自己申告にもとづく部屋の変化", pad, canvas.height - 12);
       const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/png"));
       if (!blob) throw new Error("no blob");
+      return blob;
+  };
+
+  const saveImage = async () => {
+    try {
+      const blob = await renderImage();
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
@@ -72,6 +92,18 @@ export default function ChangePage() {
       setSaveMessage("画像を保存しました。ニックネームなどの個人情報は含まれていません。");
     } catch {
       setSaveMessage("この端末では画像を保存できませんでした。");
+    }
+  };
+
+  const shareImage = async () => {
+    try {
+      const blob = await renderImage();
+      const file = new File([blob], `kagami-${dayKeyOf(clock.now())}.png`, { type: "image/png" });
+      await navigator.share({ files: [file], title: "受験生の鏡", text: "閉じるほど、物語が動き出す。" });
+      setSaveMessage("共有しました。画像に個人情報は含まれていません。");
+    } catch (e) {
+      if (e instanceof Error && e.name === "AbortError") return; // 本人が取り消した
+      setSaveMessage("この端末では共有できませんでした。画像の保存をお試しください。");
     }
   };
 
@@ -134,6 +166,11 @@ export default function ChangePage() {
         <Button variant="secondary" onClick={saveImage} data-testid="save-image">
           ビフォー・アフターの画像を保存
         </Button>
+        {canShare ? (
+          <Button variant="secondary" onClick={shareImage} data-testid="share-image">
+            画像を共有する（自分で選んだ相手にだけ）
+          </Button>
+        ) : null}
         {saveMessage ? <Note role="status">{saveMessage}</Note> : null}
         <LinkButton href="/room" variant="primary">
           部屋へ戻る

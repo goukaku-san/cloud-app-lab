@@ -20,7 +20,10 @@ test.describe("縦切り: 鏡の部屋 → 出発 → 帰還 → 変化", () => 
       serviceWorkers: "allow",
     });
     context.on("request", (req) => {
-      if (!req.url().startsWith(baseURL ?? "")) externalRequests.push(req.url());
+      const url = req.url();
+      // blob: / data: は端末内で生成した画像（保存用）。外部送信ではない
+      if (url.startsWith("blob:") || url.startsWith("data:")) return;
+      if (!url.startsWith(baseURL ?? "")) externalRequests.push(url);
     });
     page = await context.newPage();
   });
@@ -95,6 +98,11 @@ test.describe("縦切り: 鏡の部屋 → 出発 → 帰還 → 変化", () => 
     await expect(page.getByTestId("story-title")).not.toBeEmpty();
     await expect(page.getByTestId("growth-delta")).toHaveText("成長 +2");
     await expect(page.getByTestId("after-stage")).toHaveText("灯りのともる部屋");
+    // Web Share 非対応環境（この Chromium）では共有ボタンを出さない。保存ボタンは押しても落ちない
+    const shareSupported = await page.evaluate(() => typeof navigator.share === "function" && typeof navigator.canShare === "function");
+    await expect(page.getByTestId("share-image")).toHaveCount(shareSupported ? 1 : 0);
+    await page.getByTestId("save-image").click();
+    await expect(page.getByRole("status")).toContainText(/保存しました|保存できませんでした/);
     await shot(page, "08-change");
     await page.getByRole("link", { name: "部屋へ戻る" }).click();
 
