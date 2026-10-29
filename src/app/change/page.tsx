@@ -138,6 +138,9 @@ export default function ChangePage() {
         <LinkButton href="/room" variant="primary">
           部屋へ戻る
         </LinkButton>
+        <LinkButton href="/quiz" variant="ghost">
+          一問の魔法を解いてみる（任意）
+        </LinkButton>
       </div>
     </PageShell>
   );

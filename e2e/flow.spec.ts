@@ -197,6 +197,75 @@ test.describe("縦切り: 鏡の部屋 → 出発 → 帰還 → 変化", () => 
   });
 });
 
+test.describe("任意機能: 一問の魔法 / 星図（デモ）/ 音（実験）", () => {
+  test("一問の魔法はデモ表示付きで解け、成長は変わらず、記録に残る", async ({ page }) => {
+    await page.goto("/intro/");
+    await page.getByRole("button", { name: "はじめる" }).click();
+    await page.getByRole("button", { name: "この姿にする" }).click();
+    await page.getByRole("button", { name: "自分の部屋へ" }).click();
+    await expect(page.getByTestId("room")).toHaveAttribute("data-growth", "0");
+
+    await page.getByRole("link", { name: "一問の魔法（任意）" }).click();
+    await expect(page).toHaveURL(/\/quiz\/$/);
+    await expect(page.getByTestId("quiz-demo-label")).toContainText("監修前");
+    await expect(page.getByTestId("quiz-prompt")).not.toBeEmpty();
+    await page.screenshot({ path: "docs/screenshots/14-quiz.png", fullPage: true, animations: "disabled" });
+    await page.getByTestId("choice-0").click();
+    await page.getByTestId("quiz-submit").click();
+    await expect(page.getByTestId("quiz-result")).toHaveText(/正解です|ちがっていました/);
+    await expect(page.getByTestId("quiz-explanation")).not.toBeEmpty();
+    await expect(page.locator("body")).not.toContainText(/失敗|残念|ダメ/);
+    await page.getByRole("radio", { name: "直感で選んだ" }).click();
+    await page.screenshot({ path: "docs/screenshots/15-quiz-answered.png", fullPage: true, animations: "disabled" });
+    await page.getByTestId("quiz-next").click();
+    await expect(page.getByTestId("quiz-result")).toBeHidden();
+    await page.getByTestId("choice-1").click();
+    await page.getByTestId("quiz-submit").click();
+    await expect(page.getByTestId("quiz-result")).toBeVisible();
+
+    await page.getByRole("link", { name: "部屋へ戻る" }).click();
+    await expect(page.getByTestId("room")).toHaveAttribute("data-growth", "0");
+    await page.getByRole("link", { name: "旅の記録" }).click();
+    await expect(page.getByTestId("attempt-list").locator("li")).toHaveCount(2);
+    await expect(page.getByTestId("attempt-list")).toContainText("直感で選んだ");
+    await expect(page.getByTestId("week-summary")).toContainText("帰還した日: 0 日");
+  });
+
+  test("星図は架空のデモと明示され、自分の星は帰還数と一致する", async ({ page }) => {
+    await page.goto("/intro/");
+    await page.getByRole("button", { name: "はじめる" }).click();
+    await page.getByRole("button", { name: "この姿にする" }).click();
+    await page.getByRole("button", { name: "自分の部屋へ" }).click();
+    await page.getByRole("link", { name: "星図（デモ）" }).click();
+    await expect(page).toHaveURL(/\/stars\/$/);
+    await expect(page.getByTestId("stars-demo-label")).toContainText("架空のデモデータ");
+    await expect(page.getByText("あなたの星: 0 個")).toBeVisible();
+    await page.screenshot({ path: "docs/screenshots/16-stars.png", fullPage: true, animations: "disabled" });
+  });
+
+  test("音（実験）は初期 OFF で、ON にすると音量を調整でき、再読込後も設定が残る", async ({ page }) => {
+    await page.goto("/intro/");
+    await page.getByRole("button", { name: "はじめる" }).click();
+    await page.getByRole("button", { name: "この姿にする" }).click();
+    await page.getByRole("button", { name: "自分の部屋へ" }).click();
+    await page.getByRole("link", { name: "設定" }).click();
+    const sw = page.getByRole("switch", { name: "音（実験）" });
+    await expect(sw).toHaveAttribute("aria-checked", "false");
+    await expect(page.getByRole("slider", { name: "音量" })).toBeHidden();
+    await sw.click();
+    await expect(sw).toHaveAttribute("aria-checked", "true");
+    const slider = page.getByRole("slider", { name: "音量" });
+    await expect(slider).toBeVisible();
+    await slider.fill("30");
+    await expect(page.getByText("30%")).toBeVisible();
+    await page.reload();
+    await expect(page.getByRole("switch", { name: "音（実験）" })).toHaveAttribute("aria-checked", "true");
+    await expect(page.getByText("30%")).toBeVisible();
+    await page.getByRole("switch", { name: "音（実験）" }).click();
+    await expect(page.getByRole("slider", { name: "音量" })).toBeHidden();
+  });
+});
+
 test.describe("アクセシビリティ（自動検査できる範囲）", () => {
   test("14-9 キーボードだけで導入→分身→部屋→プレビューを閉じるまで進める", async ({ page }) => {
     await page.goto("/intro/");
@@ -235,7 +304,7 @@ test.describe("アクセシビリティ（自動検査できる範囲）", () =>
     await page.getByRole("button", { name: "この姿にする" }).click();
     await page.getByRole("button", { name: "自分の部屋へ" }).click();
     await expect(page.getByRole("img", { name: /鏡の部屋/ })).toBeVisible();
-    for (const path of ["/plan/", "/log/", "/settings/", "/about/", "/avatar/"]) {
+    for (const path of ["/plan/", "/log/", "/settings/", "/about/", "/avatar/", "/quiz/", "/stars/"]) {
       await page.goto(path);
       await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
     }

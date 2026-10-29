@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import "./globals.css";
 import { GameProvider } from "@/game/store/GameProvider";
 import { SwRegister } from "@/components/SwRegister";
+import { SoundController } from "@/components/SoundController";
 
 export const metadata: Metadata = {
   title: "受験生の鏡",
@@ -27,7 +28,10 @@ export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="ja" className="h-full antialiased">
       <body className="flex min-h-full flex-col">
-        <GameProvider>{children}</GameProvider>
+        <GameProvider>
+          {children}
+          <SoundController />
+        </GameProvider>
         <SwRegister />
       </body>
     </html>

@@ -55,7 +55,28 @@ export default function SettingsPage() {
       </Card>
       <Card>
         <h2 className="font-bold">音と通知</h2>
-        <Switch label="音（準備中）" checked={false} disabled note="この版では音は実装されていません。" />
+        <Switch
+          label="音（実験）"
+          checked={s.sound}
+          onChange={(v) => updateSettings({ sound: v })}
+          note="端末内で合成する静かな環境音。音声ファイルや外部通信は使いません。実機での聴感は未検証です。"
+        />
+        {s.sound ? (
+          <label className="flex items-center gap-3 py-2 text-sm">
+            音量
+            <input
+              type="range"
+              min={0}
+              max={100}
+              step={5}
+              value={Math.round(s.soundVolume * 100)}
+              onChange={(e) => updateSettings({ soundVolume: Number(e.target.value) / 100 })}
+              aria-label="音量"
+              className="flex-1"
+            />
+            <span className="w-10 text-right">{Math.round(s.soundVolume * 100)}%</span>
+          </label>
+        ) : null}
         <p className="py-2 text-sm">
           <span className="font-semibold">通知: </span>この版では通知を送りません。通知の許可も求めません。
         </p>

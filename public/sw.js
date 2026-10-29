@@ -15,6 +15,8 @@ const SHELL = [
   "/return/",
   "/change/",
   "/log/",
+  "/quiz/",
+  "/stars/",
   "/settings/",
   "/about/",
   "/manifest.webmanifest",

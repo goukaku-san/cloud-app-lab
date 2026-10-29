@@ -56,6 +56,14 @@ export default function RoomPage() {
           設定
         </LinkButton>
       </div>
+      <div className="grid grid-cols-2 gap-2">
+        <LinkButton href="/quiz" size="sm">
+          一問の魔法（任意）
+        </LinkButton>
+        <LinkButton href="/stars" size="sm">
+          星図（デモ）
+        </LinkButton>
+      </div>
       <Note>部屋はあなたの自己申告にもとづいて変わります。実際の学習を証明するものではありません。</Note>
       {!persistent ? <Note role="alert">この端末では保存ができないため、閉じると記録が消えます。</Note> : null}
     </PageShell>

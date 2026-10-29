@@ -27,6 +27,8 @@ export interface GameContextValue {
   markPreviewSeen: () => void;
   startSession: (quest: Quest) => void;
   returnFromSession: (report: SelfReport, reflection?: string) => void;
+  recordAttempt: (questionId: string, choiceIndex: number, correct: boolean) => string;
+  setAttemptThinking: (attemptId: string, thinking: string) => void;
   resetAll: () => Promise<void>;
 }
 
@@ -102,6 +104,18 @@ export function GameProvider({ children, clock = deviceClock }: { children: Reac
       dispatch({ type: "returnSession", report, reflection, now: nowIso() }),
     [nowIso],
   );
+  const recordAttempt = useCallback(
+    (questionId: string, choiceIndex: number, correct: boolean) => {
+      const id = newId();
+      dispatch({ type: "recordAttempt", id, questionId, choiceIndex, correct, now: nowIso() });
+      return id;
+    },
+    [nowIso],
+  );
+  const setAttemptThinking = useCallback(
+    (attemptId: string, thinking: string) => dispatch({ type: "setAttemptThinking", attemptId, thinking }),
+    [],
+  );
   const resetAll = useCallback(async () => {
     try {
       await adapterRef.current?.clear();
@@ -122,9 +136,11 @@ export function GameProvider({ children, clock = deviceClock }: { children: Reac
       markPreviewSeen,
       startSession,
       returnFromSession,
+      recordAttempt,
+      setAttemptThinking,
       resetAll,
     }),
-    [state, ready, persistent, clock, createPlayer, setAvatar, updateSettings, markPreviewSeen, startSession, returnFromSession, resetAll],
+    [state, ready, persistent, clock, createPlayer, setAvatar, updateSettings, markPreviewSeen, startSession, returnFromSession, recordAttempt, setAttemptThinking, resetAll],
   );
 
   return <GameContext.Provider value={value}>{children}</GameContext.Provider>;

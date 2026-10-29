@@ -21,12 +21,27 @@ export type GameAction =
   | { type: "markPreviewSeen" }
   | { type: "startSession"; id: string; quest: Quest; now: string }
   | { type: "returnSession"; report: SelfReport; reflection?: string; now: string }
+  | { type: "recordAttempt"; id: string; questionId: string; choiceIndex: number; correct: boolean; now: string }
+  | { type: "setAttemptThinking"; attemptId: string; thinking: string }
   | { type: "reset" };
+
+/** 保存済みデータに後から追加したフィールドを補う（古い保存データとの互換）。 */
+export function normalizeState(saved: GameState): GameState {
+  const base = createInitialState();
+  return {
+    ...base,
+    ...saved,
+    attempts: Array.isArray(saved.attempts) ? saved.attempts : [],
+    player: saved.player
+      ? { ...saved.player, settings: { ...DEFAULT_SETTINGS, ...saved.player.settings, notifications: false } }
+      : null,
+  };
+}
 
 export function gameReducer(state: GameState, action: GameAction): GameState {
   switch (action.type) {
     case "hydrate":
-      return action.state;
+      return normalizeState(action.state);
 
     case "createPlayer": {
       if (state.player) return state;
@@ -88,6 +103,24 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         lastChange: result.change,
       };
     }
+
+    case "recordAttempt": {
+      if (!state.player) return state;
+      const attempt = {
+        id: action.id,
+        questionId: action.questionId,
+        choiceIndex: action.choiceIndex,
+        correct: action.correct,
+        at: action.now,
+      };
+      return { ...state, attempts: [...state.attempts, attempt] };
+    }
+
+    case "setAttemptThinking":
+      return {
+        ...state,
+        attempts: state.attempts.map((a) => (a.id === action.attemptId ? { ...a, thinking: action.thinking.slice(0, 60) } : a)),
+      };
 
     case "reset":
       return createInitialState();

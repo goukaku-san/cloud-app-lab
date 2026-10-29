@@ -13,7 +13,8 @@ export interface AvatarConfig {
 export interface Settings {
   reduceMotion: boolean;
   largeText: boolean;
-  sound: boolean; // 未実装。常に false
+  sound: boolean; // 実験機能: 端末内で合成する静かな環境音（初期 OFF）
+  soundVolume: number; // 0〜1
   notifications: false; // この版では通知を送らない
 }
 
@@ -55,6 +56,29 @@ export interface WorldState {
   pointsByDay: Record<string, number>;
 }
 
+export type Subject = "数学" | "英語" | "国語" | "理科" | "社会";
+
+export interface Question {
+  id: string;
+  subject: Subject;
+  gradeBand: string; // 例: "中1", "中3", "高1"
+  prompt: string;
+  choices: string[];
+  answerIndex: number;
+  explanation: string;
+  reviewed: boolean; // 人手の監修を受けたか。false のものは画面で「デモ（監修前）」と明示する
+  source: "ai-draft" | "human";
+}
+
+export interface Attempt {
+  id: string;
+  questionId: string;
+  choiceIndex: number;
+  correct: boolean;
+  thinking?: string; // 考え方の言語化（任意）
+  at: string;
+}
+
 export interface StoryEntry {
   title: string;
   text: string;
@@ -78,6 +102,7 @@ export interface GameState {
   player: Player | null;
   world: WorldState;
   sessions: Session[];
+  attempts: Attempt[];
   activeSessionId: string | null;
   previewSeen: boolean;
   lastChange: ChangeSummary | null;
@@ -89,6 +114,7 @@ export const DEFAULT_SETTINGS: Settings = {
   reduceMotion: false,
   largeText: false,
   sound: false,
+  soundVolume: 0.5,
   notifications: false,
 };
 
@@ -110,6 +136,7 @@ export function createInitialState(): GameState {
     player: null,
     world: createInitialWorld(),
     sessions: [],
+    attempts: [],
     activeSessionId: null,
     previewSeen: false,
     lastChange: null,
