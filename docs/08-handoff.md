@@ -8,12 +8,12 @@
 | 項目 | 状態 |
 | --- | --- |
 | 製品 | 受験生の鏡 v0.1。受験生向け PWA（Next.js 16 静的書き出し、端末内保存、通信なし） |
-| 公開 URL | https://goukaku-san.github.io/cloud-app-lab/ （GitHub Pages。2026-10-30 夜に倉庫メインPCのブラウザで実表示を確認＝導入→分身→部屋→作戦会議→出発→帰還→変化→部屋の一周、375px と 320px 幅で横はみ出し 0、console エラー 0、Service Worker 有効、manifest 200。**実機〈iOS Safari / Android Chrome〉は未確認**） |
+| 公開 URL | https://goukaku-san.github.io/cloud-app-lab/ （GitHub Pages。2026-10-30 夜に倉庫メインPCのブラウザで実表示を確認＝導入→分身→部屋→作戦会議→出発→帰還→変化→部屋の一周、console エラー 0、Service Worker 有効、manifest 200。横はみ出し 0 を確かめたのは 375px 幅で部屋、320px 幅で部屋・作戦会議・旅の記録・設定・変化の 5 画面だけ（14 画面のうち残り 9 画面は未確認）。**実機〈iOS Safari / Android Chrome〉は未確認**） |
 | リポジトリ | https://github.com/goukaku-san/cloud-app-lab （2026-10-30 にオーナーが **公開** に変更） |
 | 既定ブランチ | `main`。配信元。`main` への push で `.github/workflows/pages.yml` が自動配信する |
 | 作業ブランチ | `ccr-6493d86a-e9ceuo`。`main` と同じ内容（fast-forward 関係）。前任はここで開発し、配信時に `main` を fast-forward した。後任（倉庫メインPC）は `main` に直接 commit している |
 | この PC の写し | 倉庫メインPC `C:\Users\info\projects\cloud-app-lab`（2026-10-30 に clone・`main`）。申し送り書はこのリポジトリにしかない（Desktop の作業フォルダ・Notion には無い） |
-| CI | `.github/workflows/ci.yml`（typecheck / lint / unit → E2E）。**E2E が同じ commit で成功と失敗に分かれる（ぐらつき）**＝10/30 の #10 成功・#11 失敗（fd69317）、#12 失敗・#13 成功（a91470b）。手元（Windows・Node 24）では 3 回連続 14 件成功。原因は未判定（失敗時の記録は GitHub にサインインしないと読めない）。対策＝CI では再試行 1 回・報告を常に保存（9 章） |
+| CI | `.github/workflows/ci.yml`（typecheck / lint / unit → E2E）。**E2E が同じ commit で成功と失敗に分かれる（ぐらつき）**＝10/30 の #10 成功・#11 失敗（fd69317）、#12 失敗・#13 成功（a91470b）。手元（Windows・Node 24）では 3 回連続 14 件成功。原因は未判定。サインインなしで読める範囲＝失敗した段は 2 回とも `npm run test:e2e` だけで、所要は 24〜25 秒（成功時は 23〜32 秒）＝固まって時間切れではなく、どこかの確認で外れた型。ログ本文と `playwright-report` の取得にはサインインが要る。対策＝CI では再試行 1 回・報告を常に保存（9 章）。1565e51 の CI #14 は成功 |
 | 自動検査 | 型検査・Lint エラー 0、Vitest 11 ファイル 56 件、Playwright E2E 14 件、`npm audit` 0 件（2026-10-30 夜に倉庫メインPCで再確認。audit は前任時点） |
 
 ## 2. オーナーの決定事項（変更するには本人の言葉が必要）
@@ -91,7 +91,7 @@ docs/               00 監査と R1〜R12、01 計画、02 画面、03 データ
 やったこと（すべて確認済み＝事実）:
 
 1. 公開 URL の実表示を PC のブラウザで確認（1 章の表のとおり。実機ではない）。
-2. 倉庫メインPCに写しを作り、`npm run check`（56 件）と E2E（14 件）を通した。E2E は 3 回連続成功。
+2. 倉庫メインPCに写しを作り、`npm run check`（56 件）と E2E（14 件）を通した。E2E は 3 回連続成功、さらに `--repeat-each=5`（70 件）も全成功＝手元では再現しない。
 3. CI の E2E が同じ commit で成功と失敗に分かれていることを GitHub の実行一覧で確認（1 章）。前任の「これまで全成功」は 10/30 11:07 以降は当てはまらない。
 4. 対策として `playwright.config.ts` の再試行を CI だけ 1 回に（`retries: process.env.CI ? 1 : 0`）、`ci.yml` の報告の保存を失敗時だけ→常に（`if: always()`）に変えた。ぐらついた test は報告に「flaky」と残り、原因調べの材料になる。**原因そのものは未判定。**
 
@@ -99,5 +99,6 @@ docs/               00 監査と R1〜R12、01 計画、02 画面、03 データ
 
 1. オーナーが公開 URL をスマホで触り、直したい点を列挙する。
 2. 製品力: 物語の拡充（8 日目以降）、自分だけの部屋、共有画像。
-3. 教室の星図の本番準備（集計サーバーの置き場・法務・協力塾はオーナーの決めごと）。
-4. CI のぐらつきの原因: 失敗した実行の `playwright-report`（Actions の Artifacts）を GitHub にサインインして開き、どの test がどこで止まったかを読む。
+3. 教室の星図の本番準備。置き場は候補を複数並べる（別契約の Cloudflare／Node が動く別の場所）。会社の 10/2 の決定「Cloudflare の契約は社内用と社外用で分ける」があるので、AIかおりと同じ契約には置かない。`server/store.ts` は JSON ファイル書き込みなので、Workers に置くなら保存層の書き換えが要る。法務・協力塾・年額・市場価値の出典はオーナーの決めごと。
+4. CI のぐらつきの原因: 失敗した実行の `playwright-report`（Actions の Artifacts）を GitHub にサインインして開き、どの test がどこで止まったかを読む。または手元で `npx playwright test --repeat-each=10` を回して再現を試す。
+5. 公開範囲の確認: このリポジトリは公開なので、`docs/08` 3 章のオーナーの人物描写・目標・採点、`docs/07` の事業設計は誰でも読める。公開してよい範囲をオーナーに確かめる（後任が 10/30 夜に 1 問）。
