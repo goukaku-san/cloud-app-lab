@@ -9,7 +9,7 @@
 | --- | --- | --- |
 | 型検査 | `npm run typecheck` | 成功（エラー 0） |
 | Lint | `npm run lint` | 成功（エラー 0、警告 0） |
-| 単体テスト（Vitest） | `npm run test` | 11 ファイル / 56 件すべて成功（集計サーバーの 9 件を含む） |
+| 単体テスト（Vitest） | `npm run test` | 11 ファイル / 57 件すべて成功（集計サーバーの 9 件を含む。2026-10-30 深夜に物語の題名の重複検査を 1 件追加） |
 | E2E（Playwright, 375×667, Chromium） | `npm run test:e2e` | 14 件すべて成功（本番ビルド `out/` を対象。教室の星図はモック） |
 
 件数の内訳（数え方: 単体は `it()` の数、E2E は `test()` の数）:
@@ -19,7 +19,7 @@
 | `src/game/logic/growth.test.ts` | 12 | 成長点、1 日上限 3 点、段階しきい値、単調増加、経過時間の非影響、章の進行、エピローグ、ひとことの整形 |
 | `src/game/logic/suggest.test.ts` | 3 | 常に 3 案、重複なし、休息を含む、巡回 |
 | `src/game/logic/time.test.ts` | 3 | ローカル日付、経過分、表示整形 |
-| `src/game/content/story.test.ts` | 3 | 7 章 × 3 申告 + エピローグの存在、禁止語の不在、物語の選択 |
+| `src/game/content/story.test.ts` | 4 | 14 章 × 3 申告 + エピローグ 7 本の存在、題名の重複なし、禁止語の不在、物語の選択 |
 | `src/game/store/storage.test.ts` | 4 | IndexedDB 保存・読込・削除、再起動相当、壊れたレコード、フォールバック |
 | `src/game/store/reducer.test.ts` | 5 | プレイヤー作成、出発→帰還、二重出発の防止、設定、リセット |
 | `src/game/content/questions.test.ts` | 4 | 30 問・数学中心・ID 重複なし、4 択と正答番号、監修前データの隔離、言語化選択肢の文言 |

@@ -6,7 +6,7 @@ import { MirrorRoom } from "@/components/MirrorRoom";
 import { PreviewOverlay } from "@/components/PreviewOverlay";
 import { Card, LinkButton, Loading, Note, PageShell } from "@/components/ui";
 import { ROOM_STAGES } from "@/game/content/roomStages";
-import { STORY_CHAPTERS } from "@/game/content/story";
+import { EPILOGUE_THEME, STORY_CHAPTERS } from "@/game/content/story";
 import { dayKeyOf } from "@/game/logic/time";
 import { seasonOf } from "@/game/logic/season";
 
@@ -24,6 +24,9 @@ export default function RoomPage() {
   ).length;
   const hasStarted = world.activeDays.length > 0;
   const chapter = STORY_CHAPTERS[world.chapter - 1];
+  // 最終章を過ぎたら章番号は進まない。見出しだけ「その後の日々」に替えて、同じ章名が何週間も居座らないようにする
+  const inEpilogue = world.activeDays.length > STORY_CHAPTERS.length;
+  const chapterLabel = inEpilogue ? `第${world.chapter}章のあと「${EPILOGUE_THEME}」` : `第${world.chapter}章「${chapter.theme}」`;
   const who = player.nickname ? `${player.nickname}の` : "";
 
   return (
@@ -38,7 +41,7 @@ export default function RoomPage() {
         </p>
         <p className="text-sm text-ink-soft">{stage.description}</p>
         <p className="mt-2 text-sm">
-          {hasStarted ? `第${world.chapter}章「${chapter.theme}」` : "物語は、最初の出発から始まります。"}
+          {hasStarted ? chapterLabel : "物語は、最初の出発から始まります。"}
         </p>
         <p className="text-sm" data-testid="today-status">
           {returnsToday === 0 ? "今日はまだ出発していません。" : `今日は${returnsToday}回、帰還しました。`}

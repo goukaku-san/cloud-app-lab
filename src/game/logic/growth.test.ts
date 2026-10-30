@@ -148,15 +148,21 @@ describe("章と物語", () => {
     expect(world.chapter).toBe(2);
   });
 
-  it("8 日目以降はエピローグを巡回し、章は 7 のまま", () => {
+  it("最終章（14）の翌日以降はエピローグを巡回し、章は 14 のまま", () => {
     let world = createInitialWorld();
-    for (let d = 1; d <= 7; d += 1) world = run(world, "done", d).world;
+    for (let d = 1; d <= STORY_CHAPTERS.length; d += 1) world = run(world, "done", d).world;
     expect(world.chapter).toBe(STORY_CHAPTERS.length);
-    const day8 = run(world, "done", 8);
-    expect(day8.world.chapter).toBe(7);
-    expect(day8.change.story.title).toBe(EPILOGUE[0].done.title);
-    const day9 = run(day8.world, "rest", 9);
-    expect(day9.change.story.title).toBe(EPILOGUE[1].rest.title);
+    const next = STORY_CHAPTERS.length + 1;
+    const day15 = run(world, "done", next);
+    expect(day15.world.chapter).toBe(STORY_CHAPTERS.length);
+    expect(day15.change.story.title).toBe(EPILOGUE[0].done.title);
+    const day16 = run(day15.world, "rest", next + 1);
+    expect(day16.change.story.title).toBe(EPILOGUE[1].rest.title);
+    // 一巡して最初に戻る
+    let w = day16.world;
+    for (let d = next + 2; d < next + EPILOGUE.length; d += 1) w = run(w, "partial", d).world;
+    const again = run(w, "done", next + EPILOGUE.length);
+    expect(again.change.story.title).toBe(EPILOGUE[0].done.title);
   });
 
   it("どの申告でも短い物語が返る", () => {

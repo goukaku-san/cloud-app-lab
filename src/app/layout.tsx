@@ -11,6 +11,8 @@ export const metadata: Metadata = {
   title: "受験生の鏡",
   description: "閉じるほど、物語が動き出す。",
   applicationName: "受験生の鏡",
+  // オーナー専用の試し配信（推測できない経路）では検索に載せない。NEXT_PUBLIC_NOINDEX=1 のビルドだけ noindex を付ける
+  robots: process.env.NEXT_PUBLIC_NOINDEX === "1" ? { index: false, follow: false } : undefined,
   manifest: `${base}/manifest.webmanifest`,
   appleWebApp: { capable: true, statusBarStyle: "default", title: "受験生の鏡" },
   icons: {

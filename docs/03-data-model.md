@@ -20,7 +20,7 @@ interface Session {
 interface WorldState {
   growth: number;              // 累積成長点（単調増加）
   roomStage: number;           // 0〜5
-  chapter: number;             // 1〜7（8 日目以降は 7 のままエピローグ巡回）
+  chapter: number;             // 1〜14（15 日目以降は 14 のままエピローグ巡回）
   unlockedObjects: string[];   // 部屋に現れた物の ID
   storyFlags: Record<string, boolean>;
   activeDays: string[];        // 帰還（skip 以外）があった日の dayKey。連続性は計算しない
