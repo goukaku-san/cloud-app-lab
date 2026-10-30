@@ -2,11 +2,12 @@ name: Deploy to GitHub Pages
 
 # 静的書き出し（out/）を GitHub Pages に配信する。
 # 配信先: https://<owner>.github.io/<repo>/ （サブパス配信のため NEXT_PUBLIC_BASE_PATH を付けてビルド）
-# オーナーの判断（2026-10-30、リポジトリを公開に変更）により、このブランチへの push ごとに配信する。
+# オーナーの判断（2026-10-30、リポジトリを公開に変更し、main からの配信を許可）により、
+# main への push ごとに配信する。作業ブランチからの配信は github-pages 環境の保護ルールではじかれるため対象外。
 # 注意: 非公開リポジトリで Pages を使うには GitHub の有料プランが必要（または リポジトリを公開にする）。
 on:
   push:
-    branches: ["ccr-6493d86a-e9ceuo"]
+    branches: ["main"]
   workflow_dispatch:
 
 permissions:
