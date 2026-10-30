@@ -1,19 +1,20 @@
 # 申し送り書（新しい会話の起点）
 
-最終更新: 2026-10-30 / 前任セッション: https://claude.ai/code/session_01TEHZJDHAs9678v4oDnJQFv
-新しい会話では、まずこの文書を読み、次に `docs/00〜07` と `README.md` を必要に応じて参照すること。
+最終更新: 2026-10-30 夜（倉庫メインPC・後任） / 前任セッション: https://claude.ai/code/session_01TEHZJDHAs9678v4oDnJQFv / 後任: Claude Code「受験生の鏡 続き」（倉庫メインPC）
+新しい会話では、まずこの文書を読み、次に `docs/00〜07` と `README.md` を必要に応じて参照すること。後任の追記は 9 章。
 
 ## 1. いま何があるか（現在地）
 
 | 項目 | 状態 |
 | --- | --- |
 | 製品 | 受験生の鏡 v0.1。受験生向け PWA（Next.js 16 静的書き出し、端末内保存、通信なし） |
-| 公開 URL | https://goukaku-san.github.io/cloud-app-lab/ （GitHub Pages、2026-10-30 に配信成功。前任は環境の制約で実表示を未確認） |
+| 公開 URL | https://goukaku-san.github.io/cloud-app-lab/ （GitHub Pages。2026-10-30 夜に倉庫メインPCのブラウザで実表示を確認＝導入→分身→部屋→作戦会議→出発→帰還→変化→部屋の一周、375px と 320px 幅で横はみ出し 0、console エラー 0、Service Worker 有効、manifest 200。**実機〈iOS Safari / Android Chrome〉は未確認**） |
 | リポジトリ | https://github.com/goukaku-san/cloud-app-lab （2026-10-30 にオーナーが **公開** に変更） |
 | 既定ブランチ | `main`。配信元。`main` への push で `.github/workflows/pages.yml` が自動配信する |
-| 作業ブランチ | `ccr-6493d86a-e9ceuo`。`main` と同じ内容（fast-forward 関係）。開発はここで行い、配信するときに `main` を fast-forward する |
-| CI | `.github/workflows/ci.yml`（typecheck / lint / unit → E2E）。これまで全成功 |
-| 自動検査 | 型検査・Lint エラー 0、Vitest 11 ファイル 56 件、Playwright E2E 14 件、`npm audit` 0 件（最終確認時点） |
+| 作業ブランチ | `ccr-6493d86a-e9ceuo`。`main` と同じ内容（fast-forward 関係）。前任はここで開発し、配信時に `main` を fast-forward した。後任（倉庫メインPC）は `main` に直接 commit している |
+| この PC の写し | 倉庫メインPC `C:\Users\info\projects\cloud-app-lab`（2026-10-30 に clone・`main`）。申し送り書はこのリポジトリにしかない（Desktop の作業フォルダ・Notion には無い） |
+| CI | `.github/workflows/ci.yml`（typecheck / lint / unit → E2E）。**E2E が同じ commit で成功と失敗に分かれる（ぐらつき）**＝10/30 の #10 成功・#11 失敗（fd69317）、#12 失敗・#13 成功（a91470b）。手元（Windows・Node 24）では 3 回連続 14 件成功。原因は未判定（失敗時の記録は GitHub にサインインしないと読めない）。対策＝CI では再試行 1 回・報告を常に保存（9 章） |
+| 自動検査 | 型検査・Lint エラー 0、Vitest 11 ファイル 56 件、Playwright E2E 14 件、`npm audit` 0 件（2026-10-30 夜に倉庫メインPCで再確認。audit は前任時点） |
 
 ## 2. オーナーの決定事項（変更するには本人の言葉が必要）
 
@@ -50,9 +51,10 @@ docs/               00 監査と R1〜R12、01 計画、02 画面、03 データ
 
 ## 5. 未完了・未検証（完成扱いにしないこと）
 
-- 公開 URL の実表示確認（オーナーのスマホで開いてもらう。不具合はスクリーンショットで受ける）。
+- オーナーのスマホでの確認（PC のブラウザでは一周を確認済み＝1 章。不具合はスクリーンショットで受ける）。
 - 実機（iOS Safari / Android Chrome）: PWA インストール、画面オフ中の出発継続、オフライン起動、音、画像共有。
-- 読み上げソフト、色覚、320px 幅。
+- 読み上げソフト、色覚。320px 幅は部屋・作戦会議・旅の記録・設定・変化の 5 画面で横はみ出し 0 を確認済み。他の画面は未確認。
+- CI の E2E のぐらつきの原因（1 章）。
 - 物語 7 日分と問題 30 問の人手監修（画面に「草案」「デモ（監修前）」と表示中）。
 - 教室の星図の本番: 集計サーバーの配信先、HTTPS、塾トークン発行、法務確認、協力塾、安全審査。アプリとサーバーの HTTP 結合試験も未実施（単体 9 件と curl の手動確認のみ）。
 - 売上の計算: 市場価値の出典と教室あたり年額が未提供。届いたら「必要教室数 = 目標年間売上 ÷ 教室あたり年額」で算出する。
@@ -76,7 +78,26 @@ docs/               00 監査と R1〜R12、01 計画、02 画面、03 データ
 - 文章中の「順位」などの語を E2E で禁止語として検査すると、説明文の正当な記述に誤検知する。検査対象を表やカードに絞る。
 - `workflow_dispatch` だけのワークフローは既定ブランチにないと登録されず、API 実行は 404 になる。
 - `github-pages` 環境は既定で `main` 以外からの配信をはじく（deploy ジョブが 2 秒で失敗、ログなし）。
+- （後任・Windows）`npm run build` と `npm run test:e2e` は動かない。scripts が `NEXT_TELEMETRY_DISABLED=1 next build` の POSIX 形式のため。PowerShell では `$env:NEXT_TELEMETRY_DISABLED='1'` を置いてから `npx next build`、`npx playwright test` と分けて呼ぶ。`npm run check` はそのまま動く。
+- （後任）E2E は `docs/screenshots/*.png` を毎回上書きする。意図しない差分は `git checkout -- docs/screenshots` で戻してから commit する。
+- （後任）申し送り書の置き場を探すのに時間を使った。この文書は **このリポジトリにしかない**。倉庫メインPCの作業フォルダ（Desktop\Claude Code）・Notion・G ドライブには無い。
 
 ## 8. 新しい会話の最初の一言（オーナー向けの貼り付け用）
 
 > `docs/08-handoff.md` を読んで、受験生の鏡の続きをやって。
+
+## 9. 後任の追記（2026-10-30 夜・倉庫メインPC）
+
+やったこと（すべて確認済み＝事実）:
+
+1. 公開 URL の実表示を PC のブラウザで確認（1 章の表のとおり。実機ではない）。
+2. 倉庫メインPCに写しを作り、`npm run check`（56 件）と E2E（14 件）を通した。E2E は 3 回連続成功。
+3. CI の E2E が同じ commit で成功と失敗に分かれていることを GitHub の実行一覧で確認（1 章）。前任の「これまで全成功」は 10/30 11:07 以降は当てはまらない。
+4. 対策として `playwright.config.ts` の再試行を CI だけ 1 回に（`retries: process.env.CI ? 1 : 0`）、`ci.yml` の報告の保存を失敗時だけ→常に（`if: always()`）に変えた。ぐらついた test は報告に「flaky」と残り、原因調べの材料になる。**原因そのものは未判定。**
+
+次の一手（後任の推奨順。1 と 2 は前任と同じ）:
+
+1. オーナーが公開 URL をスマホで触り、直したい点を列挙する。
+2. 製品力: 物語の拡充（8 日目以降）、自分だけの部屋、共有画像。
+3. 教室の星図の本番準備（集計サーバーの置き場・法務・協力塾はオーナーの決めごと）。
+4. CI のぐらつきの原因: 失敗した実行の `playwright-report`（Actions の Artifacts）を GitHub にサインインして開き、どの test がどこで止まったかを読む。

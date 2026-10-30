@@ -6,7 +6,9 @@ export default defineConfig({
   testDir: "./e2e",
   timeout: 60_000,
   fullyParallel: false,
-  retries: 0,
+  // CI では同じ commit で成功と失敗に分かれる（2026-10-30 #11・#12）ため 1 回だけ再試行する。
+  // ぐらついた test は報告に flaky と残る。手元では再試行しない（ぐらつきをその場で見るため）。
+  retries: process.env.CI ? 1 : 0,
   reporter: [["list"], ["html", { open: "never", outputFolder: "playwright-report" }]],
   use: {
     baseURL: `http://127.0.0.1:${PORT}`,
