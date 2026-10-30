@@ -1,10 +1,10 @@
 name: Deploy to GitHub Pages
 
-# 静的書き出し（out/）を GitHub Pages に配信する。
-# 配信先: https://<owner>.github.io/<repo>/ （サブパス配信のため NEXT_PUBLIC_BASE_PATH を付けてビルド）
-# オーナーの判断（2026-10-30、リポジトリを公開に変更し、main からの配信を許可）により、
-# main への push ごとに配信する。作業ブランチからの配信は github-pages 環境の保護ルールではじかれるため対象外。
-# 注意: 非公開リポジトリで Pages を使うには GitHub の有料プランが必要（または リポジトリを公開にする）。
+# オーナーの決定（2026-10-30 夜）「まだ早い。他の人が遊べる状態にしない」により、
+# 公開 URL https://<owner>.github.io/<repo>/ には holding/（「準備中」の 1 枚）だけを配信する。
+# ゲーム本体（out/）は配信しない。本体を配信するにはオーナーの言葉が要る。
+# 本体を配信していた版（npm ci → Build (sub-path) → upload path: out）は履歴 c4cbbf5 以前にある。
+# 作業ブランチからの配信は github-pages 環境の保護ルールではじかれるため、main への push だけが対象。
 on:
   push:
     branches: ["main"]
@@ -19,31 +19,18 @@ concurrency:
   group: pages
   cancel-in-progress: true
 
-env:
-  NEXT_TELEMETRY_DISABLED: "1"
-
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: npm
-      - run: npm ci
       - name: Configure Pages
-        id: pages
         uses: actions/configure-pages@v5
         with:
           enablement: true
-      - name: Build (sub-path)
-        run: npm run build
-        env:
-          NEXT_PUBLIC_BASE_PATH: ${{ steps.pages.outputs.base_path }}
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: out
+          path: holding
 
   deploy:
     needs: build
