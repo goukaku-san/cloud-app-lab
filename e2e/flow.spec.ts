@@ -38,7 +38,7 @@ test.describe("縦切り: 鏡の部屋 → 出発 → 帰還 → 変化", () => 
     await expect(page).toHaveURL(/\/intro\/$/);
     await expect(page.getByRole("heading", { level: 1 })).toHaveText("受験生の鏡");
     await shot(page, "01-intro");
-    await page.getByRole("button", { name: "はじめる" }).click();
+    await page.getByRole("button", { name: "はじめる", exact: true }).click();
 
     await expect(page).toHaveURL(/\/avatar\/$/);
     await page.getByRole("radio", { name: "おだんご" }).click();
@@ -57,6 +57,7 @@ test.describe("縦切り: 鏡の部屋 → 出発 → 帰還 → 変化", () => 
     await expect(dialog).toBeHidden();
     await expect(page.getByTestId("room-stage")).toHaveText("静かな部屋");
     await expect(page.getByTestId("today-status")).toHaveText("今日はまだ出発していません。");
+    await expect(page.getByTestId("story-progress")).toHaveText(/物語の記録 0\/\d+/);
     await shot(page, "04-room-stage0");
 
     // 小型スマホで横スクロールが出ない
@@ -208,7 +209,7 @@ test.describe("縦切り: 鏡の部屋 → 出発 → 帰還 → 変化", () => 
 test.describe("任意機能: 一問の魔法 / 星図（デモ）/ 音（実験）", () => {
   test("一問の魔法はデモ表示付きで解け、成長は変わらず、記録に残る", async ({ page }) => {
     await page.goto("/intro/");
-    await page.getByRole("button", { name: "はじめる" }).click();
+    await page.getByRole("button", { name: "はじめる", exact: true }).click();
     await page.getByRole("button", { name: "この姿にする" }).click();
     await page.getByRole("button", { name: "自分の部屋へ" }).click();
     await expect(page.getByTestId("room")).toHaveAttribute("data-growth", "0");
@@ -241,7 +242,7 @@ test.describe("任意機能: 一問の魔法 / 星図（デモ）/ 音（実験�
 
   test("星図は架空のデモと明示され、自分の星は帰還数と一致する", async ({ page }) => {
     await page.goto("/intro/");
-    await page.getByRole("button", { name: "はじめる" }).click();
+    await page.getByRole("button", { name: "はじめる", exact: true }).click();
     await page.getByRole("button", { name: "この姿にする" }).click();
     await page.getByRole("button", { name: "自分の部屋へ" }).click();
     await page.getByRole("link", { name: "星図（デモ）" }).click();
@@ -253,7 +254,7 @@ test.describe("任意機能: 一問の魔法 / 星図（デモ）/ 音（実験�
 
   test("音（実験）は初期 OFF で、ON にすると音量を調整でき、再読込後も設定が残る", async ({ page }) => {
     await page.goto("/intro/");
-    await page.getByRole("button", { name: "はじめる" }).click();
+    await page.getByRole("button", { name: "はじめる", exact: true }).click();
     await page.getByRole("button", { name: "この姿にする" }).click();
     await page.getByRole("button", { name: "自分の部屋へ" }).click();
     await page.getByRole("link", { name: "設定" }).click();
@@ -283,7 +284,7 @@ test.describe("教室の星図（モック: 通信なし）", () => {
       if (!url.startsWith(baseURL ?? "")) external.push(url);
     });
     await page.goto("/intro/");
-    await page.getByRole("button", { name: "はじめる" }).click();
+    await page.getByRole("button", { name: "はじめる", exact: true }).click();
     await page.getByRole("button", { name: "この姿にする" }).click();
     await page.getByRole("button", { name: "自分の部屋へ" }).click();
     await page.getByRole("link", { name: "設定" }).click();
@@ -335,7 +336,7 @@ test.describe("教室の星図（モック: 通信なし）", () => {
 
   test("架空の教室では合計が表示され、塾の画面は合計だけを出す", async ({ page }) => {
     await page.goto("/intro/");
-    await page.getByRole("button", { name: "はじめる" }).click();
+    await page.getByRole("button", { name: "はじめる", exact: true }).click();
     await page.getByRole("button", { name: "この姿にする" }).click();
     await page.getByRole("button", { name: "自分の部屋へ" }).click();
     await page.goto("/classroom/");
@@ -363,11 +364,22 @@ test.describe("アクセシビリティ（自動検査できる範囲）", () =>
     await page.goto("/intro/");
     const nickname = page.getByRole("textbox", { name: /ニックネーム/ });
     await expect(nickname).toBeVisible(); // 端末内データの読込後にフォームが出る
-    await page.keyboard.press("Tab");
+    // 先頭の「はじめる」にキーボードで届く
+    const startButton = page.getByRole("button", { name: "はじめる", exact: true });
+    for (let i = 0; i < 10; i += 1) {
+      if (await startButton.evaluate((el) => el === document.activeElement)) break;
+      await page.keyboard.press("Tab");
+    }
+    await expect(startButton).toBeFocused();
+    // 名前をつける入口にもキーボードで届く
+    for (let i = 0; i < 20; i += 1) {
+      if (await nickname.evaluate((el) => el === document.activeElement)) break;
+      await page.keyboard.press("Tab");
+    }
     await expect(nickname).toBeFocused();
     await page.keyboard.type("テスト");
     await page.keyboard.press("Tab");
-    await expect(page.getByRole("button", { name: "はじめる" })).toBeFocused();
+    await expect(page.getByRole("button", { name: "この名前ではじめる" })).toBeFocused();
     await page.keyboard.press("Enter");
     await expect(page).toHaveURL(/\/avatar\/$/);
 
@@ -392,7 +404,7 @@ test.describe("アクセシビリティ（自動検査できる範囲）", () =>
 
   test("主要画面に見出しと役割付きの部屋画像がある", async ({ page }) => {
     await page.goto("/intro/");
-    await page.getByRole("button", { name: "はじめる" }).click();
+    await page.getByRole("button", { name: "はじめる", exact: true }).click();
     await page.getByRole("button", { name: "この姿にする" }).click();
     await page.getByRole("button", { name: "自分の部屋へ" }).click();
     await expect(page.getByRole("img", { name: /鏡の部屋/ })).toBeVisible();

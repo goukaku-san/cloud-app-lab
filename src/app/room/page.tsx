@@ -28,6 +28,8 @@ export default function RoomPage() {
   const inEpilogue = world.activeDays.length > STORY_CHAPTERS.length;
   const chapterLabel = inEpilogue ? `第${world.chapter}章のあと「${EPILOGUE_THEME}」` : `第${world.chapter}章「${chapter.theme}」`;
   const who = player.nickname ? `${player.nickname}の` : "";
+  // 物語の記録: 帰還した日の数（減らない。連続かどうかは数えない）
+  const storyRead = Math.min(world.activeDays.length, STORY_CHAPTERS.length);
 
   return (
     <PageShell title={`${who}鏡の部屋`}>
@@ -36,9 +38,17 @@ export default function RoomPage() {
         <MirrorRoom stage={world.roomStage} objects={world.unlockedObjects} avatar={player.avatar} season={season} />
       </div>
       <Card>
-        <p className="text-lg font-bold" data-testid="room-stage">
-          {stage.name}
-        </p>
+        <div className="flex items-start justify-between gap-2">
+          <p className="text-lg font-bold" data-testid="room-stage">
+            {stage.name}
+          </p>
+          <p
+            className="shrink-0 rounded-full border-2 border-ink bg-star/60 px-3 py-0.5 text-xs font-black"
+            data-testid="story-progress"
+          >
+            物語の記録 {storyRead}/{STORY_CHAPTERS.length}
+          </p>
+        </div>
         <p className="text-sm text-ink-soft">{stage.description}</p>
         <p className="mt-2 text-sm">
           {hasStarted ? chapterLabel : "物語は、最初の出発から始まります。"}
