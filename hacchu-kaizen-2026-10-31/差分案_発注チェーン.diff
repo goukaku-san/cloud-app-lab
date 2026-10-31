@@ -1,0 +1,518 @@
+diff -uN a/board_action.ps1 b/board_action.ps1
+--- a/board_action.ps1	2026-10-31 09:19:27.746117056 +0000
++++ b/board_action.ps1	2026-10-31 09:19:27.762117057 +0000
+@@ -14,7 +14,7 @@
+ #               倉庫メインPCの定期実行から呼ぶ（2026-10-03 玉井さん「送信したら自動で完了。押す必要はない」）。画面は出さない。-DryRun で書かずに結果だけ出す
+ # 台帳（状態の正本）＝…\発注\発注案\〈案件ID〉.json。書くのはこのファイルと process_budget_files.ps1 だけ。
+ param(
+-    [Parameter(Mandatory)][ValidateSet('draft','open','mark','refresh','build','verify','verifycopy','lineok','okcheck','naoshi','naoshicancel','henkook','mottekitta','manq')][string]$Action,
++    [Parameter(Mandatory)][ValidateSet('draft','open','mark','refresh','build','verify','verifycopy','lineok','okcheck','naoshi','naoshicancel','henkook','mottekitta','manq','shusei')][string]$Action,
+     [switch]$DryRun,
+     [string]$CaseHex = '',
+     [string]$AiteHex = '',
+@@ -118,6 +118,7 @@
+ $DONE = @('送った', '電話した', '不要', '倉庫から出した', '現場が発注済み')   # 2026-09-22 点検：board_build・process_budget_files とそろえた（倉庫出しが永久に「残り」にならないように）
+ # 止まっている状態＝送ったかもしれない。ここから下書きを作らせない（2026-09-23）
+ $STUCK = @('送ったか確かめて', '⚠二重に送っています', '送信トレイで止まっています', '⚠古い中身で送っています')
++. (Join-Path $PSScriptRoot 'genba_hantei.ps1')   # 2026-10-31 草案（発注チェーンの点検・本番未投入）：$GENBA_HOLD・Test-KaikiOwatta
+ $caseId = FromHex $CaseHex
+ $aite = FromHex $AiteHex
+ if ($StateHex) { $State = FromHex $StateHex }
+@@ -277,6 +278,8 @@
+     if (-not (Outlook-Open)) { Alert '先に Outlook を開いてから、もう一度押してください。'; Note "draft 中止（Outlookが開いていない）$caseId $aite"; break }
+     $L = Load-Ledger $caseId; $d = $L.Doc
+     if ($d.下書き可 -ne $true) { Alert ("この発注はまだ下書きを作れません（" + $d.状態 + "）"); break }
++    # 2026-10-31 草案（発注チェーンの点検・本番未投入）：会期が終わった催事は下書きを作らない（画面のボタンを消すだけでは、開いたままの古い画面・ブラウザから呼べる＝裏でも止める）
++    if (Test-KaikiOwatta $d) { Alert ("この催事は会期が終わっています（会期終了 " + [string]$d.会期終了 + "）。下書きは作りません。"); Note "draft 中止（会期が終わった）$caseId $aite"; break }
+     # 2026-10-01 止め金（仕組み\止め金.json）：開いたままの古い画面から押されても、期限の内側は下書きを作らない
+     $tome = $null
+     #   相手つきの止め金はその相手だけ。期限なし＝外すまで（見直す日つき）。board_build.ps1 と同じ読み方
+@@ -285,6 +288,8 @@
+     if ($tome) { Alert ("この発注は、いま送らないでください。`r`n`r`n" + [string]$tome.理由 + "`r`n（" + $(if ([string]$tome.期限) { [string]$tome.期限 + " まで" } else { "見直す日 " + [string]$tome.見直す日 }) + "）`r`n`r`n熊田さんがすること：なし（待つだけ）。`r`n" + $(if ([string]$tome.期限) { "期限を過ぎると自動で外れます。その後にもう一度押してください。" } else { "外すかどうかは玉井さんが決めます。見直す日を過ぎると、ボードのいちばん上の「仕組みの困りごと」に自動で載ります。外れると、この行のボタンがそのまま使えます。" })); Note "draft 中止（止め金）$caseId $aite"; break }
+     $c = $d.候補 | Where-Object { $_.相手 -eq $aite } | Select-Object -First 1
+     if (-not $c) { Add-Komarigoto '相手が台帳に無い' $caseId $aite '画面に出ている相手が台帳に無い（画面が古い・作り直しで消えた）'; Alert ("この相手（" + $aite + "）が台帳にありません。`r`nボードの画面が古いことがあります（取り消した相手は、作り直しで行が無くなります）。`r`n`r`n熊田さんがすること：ボードを閉じて開き直してください（ブラウザ版は読み直し）。開き直してもこの行が出るときは、仕組みの側の止まりです。ボードのいちばん上の「仕組みの困りごと」に載りました。熊田さんが直す必要はありません。"); Note "候補なし $caseId $aite"; break }   # 2026-10-09 マニュアル係（追加）
++    # 2026-10-31 草案（発注チェーンの点検・本番未投入） 項目1・2：済み（送った・現場が発注済み など）と、現場の判定で止めた行は、裏でも下書きを作らない（今は画面のボタンを隠すだけ）
++    if ($DONE -contains [string]$c.状態 -or $GENBA_HOLD -contains [string]$c.状態) { Alert ("この行は『" + [string]$c.状態 + "』です。下書きは作りません。" + $(if ([string]$c.現場の記録) { "`r`n（" + [string]$c.現場の記録 + "）" } else { '' })); Note "draft 中止（済み・現場の判定で止めた行 $($c.状態)）$caseId $aite"; break }
+     if (-not (Kumada-Gate $caseId $aite $d 'draft')) { break }
+     # 2026-09-23 点検役 57点⛔2：画面のボタンを消しただけでは、開いたままの古い画面から呼べてしまう。裏側でも止める
+     # 2026-09-26：下書きを作る途中（Display）で時間切れになると、下書きは1通あるのに台帳は「まだ」のまま。
+@@ -373,6 +378,8 @@
+     #   （阪神1週目のセニヤ＝台帳 2c/s・2c/s なのに、本文は くんあし 1c/s・炙りいわし 3c/s）
+     $fixP = Join-Path (Join-Path $root '確認') ($caseId + '.json')
+     if (Test-Path $fixP) { $prm.FixPath = $fixP }
++    if ($d.修正の扱い) { $prm.ShuseiAtsukai = [string]$d.修正の扱い.扱い; $prm.ShuseiKagi = [string]$d.修正の扱い.答えた日時 }   # 2026-10-31 草案（発注チェーンの点検・本番未投入） 項目5（process_budget_files と同じ渡し方）
++    if ($d.担当者の確認) { $prm.ShuseiZenkai = [string]$d.担当者の確認.反映; $prm.ShuseiZenkaiKagi = [string]$d.担当者の確認.答えた日時 }
+     $prm.NaoshiDir = Join-Path $planDir '予定の直し'   # 2026-10-07 予定の直し（process_budget_files と同じ渡し方・点検役(3)。渡さないと台帳は直っているのに下書きの本文だけ直す前の案になる＝10/1 の確認と同じ事故）
+     # 2026-10-15 週ごとの売上予算は渡さない（催事を週で分けない・玉井さん 10/15）
+     # 2026-09-23 点検役 H4：一度［やり直す］を通った行＝前に何かを送っている可能性がある。相手が取り違えないよう【差し替え】と前書きを付ける
+@@ -485,6 +492,7 @@
+     $L = Load-Ledger $caseId
+     $c = $L.Doc.候補 | Where-Object { $_.相手 -eq $aite } | Select-Object -First 1
+     if (-not $c -or -not $c.EntryID) { Alert 'まだ下書きがありません。［下書きを作って開く］を押してください。'; break }
++    if (Test-KaikiOwatta $L.Doc) { Alert ("この催事は会期が終わっています（会期終了 " + [string]$L.Doc.会期終了 + "）。残っている下書きは送らないでください。"); Note "open 中止（会期が終わった）$caseId $aite"; break }   # 2026-10-31 草案（発注チェーンの点検・本番未投入）
+     if ([string]$c.作ったPC -and [string]$c.作ったPC -ne $env:COMPUTERNAME) { Add-Komarigoto '別のPCの下書き' $caseId $aite ('下書きは「' + [string]$c.作ったPC + '」のPCの Outlook にある・押したPC＝' + $env:COMPUTERNAME); Alert ("この下書きは「" + [string]$c.作ったPC + "」のPCで作ってあります。`r`nそのPCの Outlook の［下書き］＞［発注ボード］から開いてください。`r`n`r`n熊田さんがすること：そのPCが使えるときは、そのPCで開いて送るだけです。使えないときは待ってください。`r`n`r`nこの件はボードのいちばん上の「仕組みの困りごと」に載り、玉井さんに届きます。熊田さんが伝える必要はありません。"); Note "open 中止（別のPC $($c.作ったPC)）$caseId $aite"; break }   # 2026-10-08 穴28
+     if (-not (Kumada-Gate $caseId $aite $L.Doc 'open')) { break }
+     try { (Outlook-Item $c.EntryID $c.StoreID).Display(); Note "open $caseId $aite" }
+@@ -499,6 +507,20 @@
+     # 2026-10-09 マニュアル係⑰：⚠二重・⚠古い中身の行の［相手に伝えた］は送信ではなく「電話・メールで伝えた事実」の記録＝熊田さんの直し待ちで止めない
+     if ($State -eq '送った' -and ($env:HACCHU_NO_ALERT -ne '1' -or $env:HACCHU_WHO) -and [string]$c.状態 -notin @('⚠二重に送っています', '⚠古い中身で送っています')) { if (-not (Kumada-Gate $caseId $aite $L.Doc 'mark')) { break } }
+     $prevState = [string]$c.状態
++    # 2026-10-31 草案（発注チェーンの点検・本番未投入） 項目1：［数を確かめた］は状態を変えない。現場の照合に「数も確認済み」と、押した人・時刻を書くだけ
++    if ($State -eq '数を確かめた') {
++        $shD = [ordered]@{}; if ($c.現場の照合) { foreach ($pp in $c.現場の照合.PSObject.Properties) { $shD[$pp.Name] = $pp.Value } }
++        $shD.数 = '確認済み'; $shD.数を確かめた人 = $(if ($env:HACCHU_WHO) { $env:HACCHU_WHO } else { $env:USERNAME }); $shD.数を確かめた日時 = (Get-Date -Format 'yyyy-MM-dd HH:mm')
++        $c | Add-Member -NotePropertyName 現場の照合 -NotePropertyValue ([pscustomobject]$shD) -Force
++        Save-Ledger $L; Note "数を確かめた $caseId $aite"; break
++    }
++    # 2026-10-31 草案（発注チェーンの点検・本番未投入） 項目2：自動の現場の判定（現場が発注済み・一部・取消の確かめ待ち）を人が［戻す］で外した＝その時までの根拠では当て直さない（誤って成立した完了の訂正）
++    if ($State -eq '候補' -and ($prevState -eq '現場が発注済み' -or $GENBA_HOLD -contains $prevState)) {
++        $c | Add-Member -NotePropertyName 現場の判定を外した -NotePropertyValue ([pscustomobject][ordered]@{ 日時 = (Get-Date -Format 'yyyy-MM-dd HH:mm'); 押した人 = $(if ($env:HACCHU_WHO) { $env:HACCHU_WHO } else { $env:USERNAME }); 前の状態 = $prevState; 前の記録 = [string]$c.現場の記録 }) -Force
++    }
++    if ($State -eq '現場が発注済み' -and $GENBA_HOLD -contains $prevState) {
++        $c | Add-Member -NotePropertyName 現場の照合 -NotePropertyValue ([pscustomobject][ordered]@{ 区分 = '人が決めた（全部 現場で発注済み）'; 数 = '未確認'; 前の照合 = $c.現場の照合; 決めた日時 = (Get-Date -Format 'yyyy-MM-dd HH:mm') }) -Force
++    }
+     # 2026-09-23 点検役 2-①：人が状態を決めた時点の「送信済みの通数」を覚える。次の verify はここから増えた時だけ赤にする
+     if ($State -in @('送った', '候補', '不要')) { $c | Add-Member -NotePropertyName 確かめた通数 -NotePropertyValue ([int]$c.見つけた通数) -Force }
+     $c.状態 = $State; $c.日時 = (Get-Date -Format 'yyyy-MM-dd HH:mm')
+@@ -1006,6 +1028,16 @@
+     Alert "確かめたことを記録しました。`r`nこの行の［下書きを作って開く］が出ます。"
+     Note "okcheck $caseId $aite"
+   }
++  'shusei' {
++    # 2026-10-31 草案（発注チェーンの点検・本番未投入） 項目5：修正の字に出庫の語があって「確かめ待ち」になった催事で、人が［注文として当てる］［報告なので当てない］を押す。どの答えに対する決めかを答えた日時で結ぶ
++    if ($State -notin @('注文', '報告')) { throw '注文か報告を選んでください' }
++    $L = Load-Ledger $caseId
++    $kagiS = [string]$L.Doc.担当者の確認.答えた日時
++    $L.Doc | Add-Member -NotePropertyName 修正の扱い -NotePropertyValue ([pscustomobject][ordered]@{ 扱い = $State; 答えた日時 = $kagiS; 押した人 = $(if ($env:HACCHU_WHO) { $env:HACCHU_WHO } else { $env:USERNAME }); どこで = $(if ($env:HACCHU_WHO) { 'ブラウザ' } else { $env:COMPUTERNAME }); 日時 = (Get-Date -Format 'yyyy-MM-dd HH:mm') }) -Force
++    Save-Ledger $L
++    Note "修正の扱い $State $caseId（答えた日時 $kagiS）"
++    Alert ("記録しました（" + $State + "）。次の更新で台帳に反映します。")
++  }
+   'henkook' {
+     # 2026-10-08 送った後に中身が変わった⚠（process_budget_files が立てる）を、人が「相手に伝えた／問題なし」と確かめた記録。
+     #   送った時の中身を今の中身に置き換える＝次にまた変わった時だけ⚠が出る。何も送らない
+diff -uN a/board_build.ps1 b/board_build.ps1
+--- a/board_build.ps1	2026-10-31 09:19:27.750985516 +0000
++++ b/board_build.ps1	2026-10-31 09:19:27.766117057 +0000
+@@ -18,6 +18,14 @@
+ $DONE = @('送った', '電話した', '不要', '倉庫から出した', '現場が発注済み')
+ # 2026-09-23 点検役（Fable 5.1）⛔1：下の4つは「送ったかもしれない」状態。ここから下書きを作ると2通目を送る道になるので、ボタンを出さない
+ $STUCK = @('送ったか確かめて', '⚠二重に送っています', '送信トレイで止まっています', '⚠古い中身で送っています')
++. (Join-Path $PSScriptRoot 'genba_hantei.ps1')   # 2026-10-31 草案（発注チェーンの点検・本番未投入）：$GENBA_HOLD・Test-KaikiOwatta
++function Genba-Hold-Btn([string]$s0, [string]$cid0, [string]$aid0, $c) {
++    $hinG = (@(@($c.現場の照合.当たった品) | ForEach-Object { Esc ([string]$_.品) }) -join '・')
++    if ($s0 -eq '一部は現場が発注済み') {
++        return "<span class='m'>⚠ LINE で現場が頼んだ品があります（" + $hinG + "）。この行は下書きを作れません。済んだ品を［予定を直す窓］で「もう頼んである」にすると、残りの品だけ下書きにできます。数は確かめていません。</span><br><button onclick=""act('mark','$cid0','$aid0','現場が発注済み')"">全部 現場で発注済み</button><button onclick=""if(confirm('LINE の発注は、この行の品ではないとして下書きに戻します。前に頼んだ品と二重に頼まないよう、確かめてから押してください。'))act('mark','$cid0','$aid0','候補')"">この行の品は頼まれていない</button>"
++    }
++    return "<span class='m'>⚠ 現場の発注に取消・訂正が届きました（" + (Esc ([string]$c.現場の記録)) + "）。下書きは作れません。</span><br><button onclick=""act('mark','$cid0','$aid0','現場が発注済み')"">現場で発注済みのまま</button><button onclick=""if(confirm('現場の発注は取り消されたとして、下書きに戻します。'))act('mark','$cid0','$aid0','候補')"">頼み直す（下書きに戻す）</button>"
++}
+ # 2026-10-08 穴21：止まっている4つの状態は、どれも［送れていた］［送れていない（やり直す）］の同じ2つだった＝⚠二重・⚠古い中身では何をすればよいか分からない。
+ #   状態ごとに「次にすること」1行と、それに合うボタンを出す。下書きを作り直すボタンは出さない（2通目の道をふさぐ・点検役⛔1のまま）
+ function Stuck-Btn([string]$s, [string]$cid, [string]$aid) {
+@@ -463,7 +471,11 @@
+         $nokori = $(if ($sd) { ($sd - $today).Days } else { 9999 })
+         $aid0 = Hex ([string]$c.相手)
+         $btn = ''
+-        if ($STUCK -contains $s0) {
++        if (Test-KaikiOwatta $d) {
++            $btn = "<span class='m'>会期が終わった催事です（下書きは作れません）</span>"   # 2026-10-31 草案（発注チェーンの点検・本番未投入）
++        } elseif ($GENBA_HOLD -contains $s0) {
++            $btn = Genba-Hold-Btn $s0 $cid0 $aid0 $c   # 2026-10-31 草案（発注チェーンの点検・本番未投入） 項目1・2
++        } elseif ($STUCK -contains $s0) {
+             # 2026-09-23 点検役⛔1：止まっている行から下書きを開かせない（二重に送る道をふさぐ）
+             $btn = Stuck-Btn $s0 $cid0 $aid0
+         } elseif ($c.止め金) {
+@@ -753,6 +765,7 @@
+         if (@($nd.直した).Count) { [void]$sb.Append("<div class='m'>反映：" + (Esc (Hira (@($nd.直した) -join '／'))) + "</div>") }
+     }
+     [void]$sb.Append("</div>")
++    if ([string]$d.担当者の確認.反映 -like '確かめ待ち*') { $cidS = Hex ([string]$d.案件ID); [void]$sb.Append("<div class='note'>⚠ 担当者の修正の字に、倉庫から持ち出した報告らしい言葉があります（" + (Esc ((@($d.担当者の確認.反映できない理由) | Select-Object -First 1) -join '')) + "）。数は変えていません。<br><button onclick=""act('shusei','$cidS','','注文')"">注文として当てる</button><button onclick=""act('shusei','$cidS','','報告')"">報告なので当てない（今の数のまま）</button></div>") }   # 2026-10-31 草案（発注チェーンの点検・本番未投入） 項目5
+     [void]$sb.Append("<table><tr><th>相手</th><th>方法</th><th>中身</th><th>送る日</th><th>状態</th><th></th></tr>")
+     $today = (Get-Date).Date
+     foreach ($c in @($d.候補)) {
+@@ -772,6 +785,9 @@
+         } elseif ($DONE -contains $s) {
+             $modoMsg = '「' + $s + '」を取り消して「まだ送っていない」に戻します。' + $(if ($c.方法 -eq '倉庫出し' -and $s -eq '倉庫から出した') { '倉庫から出した記録も消え、倉庫の在庫の数が元に戻ります。' } else { '' }) + 'よろしいですか？'
+             $b = "<button onclick=""if(confirm('$modoMsg'))act('mark','$cid','$aid','候補')"">戻す</button>"
++            if ($s -eq '現場が発注済み' -and [string]$c.現場の照合.数 -ne '確認済み') { $b += "<span class='m'>数は確かめていません</span><button onclick=""act('mark','$cid','$aid','数を確かめた')"">数を確かめた</button>" }   # 2026-10-31 草案（発注チェーンの点検・本番未投入） 項目1
++        } elseif ($GENBA_HOLD -contains $s) {
++            $b = Genba-Hold-Btn $s $cid $aid $c   # 2026-10-31 草案（発注チェーンの点検・本番未投入） 項目1・2
+         } elseif ($STUCK -contains $s) {
+             # 2026-09-23 点検役⛔1：送信済み・送信トレイに同じ目印の便が見つかっている行。下書きを作り直すと二重に送るので、まず確かめてもらう
+             $b = Stuck-Btn $s $cid $aid
+@@ -781,7 +797,7 @@
+         } else {
+             if ($youkakunin) {
+                 $b += "<button class='p' onclick=""if(askCheck())act('okcheck','$cid','$aid','')"">注意を確かめました</button>"
+-            } elseif ($c.方法 -notin @('電話メモ', '倉庫出し') -and $d.下書き可 -eq $true) {
++            } elseif ($c.方法 -notin @('電話メモ', '倉庫出し') -and $d.下書き可 -eq $true -and -not (Test-KaikiOwatta $d)) {   # 2026-10-31 草案：会期が終わった催事は出さない
+                 $b += $(if ($s -eq '下書き済') { "<button class='p' onclick=""act('open','$cid','$aid','')"">下書きを開く</button>" } else { "<button class='p' onclick=""act('draft','$cid','$aid','')"">下書きを作って開く</button>" })
+             }
+             if ($c.方法 -eq '電話メモ' -and $d.下書き可 -eq $true) { $b += "<button class='p' onclick=""act('draft','$cid','$aid','')"">電話メモを開く</button>" }
+@@ -1064,6 +1080,8 @@
+ # ボタンは「今日やること」の表と同じ条件・同じ動き（ここで判定を変えない）
+ function Btn-For($d, $c) {
+     $s0 = [string]$c.状態; $cid0 = Hex ([string]$d.案件ID); $aid0 = Hex ([string]$c.相手)
++    if (Test-KaikiOwatta $d) { return "<span class='m'>会期が終わった催事です（下書きは作れません）</span>" }   # 2026-10-31 草案（発注チェーンの点検・本番未投入）
++    if ($GENBA_HOLD -contains $s0) { return (Genba-Hold-Btn $s0 $cid0 $aid0 $c) }
+     if ($STUCK -contains $s0) { return (Stuck-Btn $s0 $cid0 $aid0) }
+     if ($d.下書き可 -eq $true -and $c.送る前に確認 -eq $true -and ([string]$c.確認しました.確かめた理由 -ne [string]$c.確認の理由)) {
+         return "<button class='p' onclick=""if(askCheck())act('okcheck','$cid0','$aid0','')"">注意を確かめました</button><br><span class='m'>⚠ 送る前に確かめること：" + [regex]::Replace((Esc (Hira ([string]$c.確認の理由))), '\*\*(.+?)\*\*', '<b>$1</b>') + "</span>"
+diff -uN a/genba_hantei.ps1 b/genba_hantei.ps1
+--- a/genba_hantei.ps1	1970-01-01 00:00:00.000000000 +0000
++++ b/genba_hantei.ps1	2026-10-31 09:19:27.773071267 +0000
+@@ -0,0 +1,131 @@
++# genba_hantei.ps1 — 現場の発注（LINE の1タップ・まとめ）を、台帳の行の「品ごと」に当てる。第12版 2章（社内グループの発言＝品×出来事ごと）・決10（受付と成立を分ける）
++# 2026-10-31 草案（発注チェーンの点検・本番未投入）。ここには関数だけを置く：ファイルを読まない・書かない・時計は引数で受ける。
++#   使う所＝process_budget_files.ps1（判定）・board_action.ps1（下書きの裏の歯止め・人の［戻す］）・board_build.ps1（画面のボタン）
++$GENBA_HOLD = @('一部は現場が発注済み', '現場の発注が取り消された・確かめ待ち')   # 下書きを作らない止まり。DONE（済み）でも候補でもない＝「残り」に数える
++
++function Norm-VenueG([string]$s) { return ([string]$s -replace '[\s　㈱株式会社（）\(\)]', '') }
++function Get-HinCore([string]$part) { return ((([string]$part -replace '[【】（）\(\)○◎●・※\s　]', '') -split '[0-9０-９]')[0]) }
++function Get-NichijiG([string]$s) { if ([string]$s -match '(\d{4}-\d{2}-\d{2} \d{2}:\d{2})') { return [datetime]$Matches[1] } return $null }
++
++# 1品の根拠を探す。当て方は今の Ittap-Done／Genba-Done と同じ（案件IDがあればその催事だけ・無ければ会場名・1タップは相手の欄があればその相手だけ）
++function Get-GenbaKonkyo {
++    param([string]$Id, [string]$Venue, [string]$Aite, [string]$Core, $Ittap, $Genba)
++    $v = Norm-VenueG $Venue
++    foreach ($t in @($Ittap)) {
++        if (-not $t -or [string]$t.種別 -ne '発注完了') { continue }
++        if ([string]$t.相手 -and $Aite -and [string]$t.相手 -ne $Aite) { continue }
++        $same = $false
++        if ([string]$t.案件ID) { $same = ([string]$t.案件ID -eq $Id) }
++        elseif ($t.会場) { $tv = Norm-VenueG ([string]$t.会場); if ($tv -and $v -and ($v.Contains($tv) -or $tv.Contains($v))) { $same = $true } }
++        if (-not $same) { continue }
++        $body = ([string]$t.もとの発言 -replace '[【】（）\(\)○◎●・※\s　]', '')
++        if ($body.Contains($Core)) { return [pscustomobject]@{ 種類 = '1タップ'; 決め方 = [string]$(if ($t.決め方) { $t.決め方 } else { 'ボタン' }); 日時 = [string]$t.日時; だれが = [string]$t.だれが; 鍵 = ('1タップ|' + [string]$t.id) } }
++    }
++    if (-not $v) { return $null }   # 今の Genba-Done と同じ（会場が空なら当てない）
++    foreach ($g in @($Genba)) {
++        if (-not $g) { continue }
++        if ([string]$g.案件ID) { if ([string]$g.案件ID -ne $Id) { continue } }
++        else { $gv = Norm-VenueG ([string]$g.会場); if (-not $gv -or -not ($v.Contains($gv) -or $gv.Contains($v))) { continue } }
++        $honbun = $(if ($g.照合用) { [string]$g.照合用 } else { [string]$g.本文 })
++        $bodyC = ($honbun -replace '[【】（）\(\)○◎●・※\s　]', '')
++        if ($bodyC.Contains($Core)) { return [pscustomobject]@{ 種類 = 'まとめ'; 決め方 = '本文から読み取り'; 日時 = [string]$g.日時; だれが = [string]$g.だれが; 鍵 = ('まとめ|' + [string]$g.日時 + '|' + [string]$g.会場) } }
++    }
++    return $null
++}
++
++# 行の品ごとに当てる。区分＝全品／一部／無し。品名の核が3文字に満たない品は当てない（今と同じ）＝「当たらない」に数える
++function Get-GenbaHantei {
++    param([string]$Id, [string]$Venue, [string]$Naka, [string]$Aite, $Ittap, $Genba)
++    $atari = @(); $hazure = @()
++    foreach ($part in ([string]$Naka -split '／')) {
++        $p = $part.Trim(); if (-not $p) { continue }
++        $core = Get-HinCore $p
++        $k = $null
++        if ($core.Length -ge 3) { $k = Get-GenbaKonkyo -Id $Id -Venue $Venue -Aite $Aite -Core $core -Ittap $Ittap -Genba $Genba }
++        if ($k) { $atari += [pscustomobject]@{ 品 = $p; 核 = $core; 根拠 = $k } } else { $hazure += $p }
++    }
++    $kubun = $(if (-not $atari.Count) { '無し' } elseif (-not $hazure.Count) { '全品' } else { '一部' })
++    return [pscustomobject]@{ 区分 = $kubun; 当たった = @($atari); 当たらない = @($hazure) }
++}
++
++# 明示的な取消・訂正だけを拾う。①1タップの記録の「取消」「数量変更」（熊田さんの公式の修正）②予定の直しの「頼んだ分を減らした」。どちらも根拠の日時より後の物だけ
++function Get-GenbaTorikeshi {
++    param([string]$Id, [string]$Aite, $Ittap, $Naoshi, $Old)
++    $konkyoAt = $null
++    if ($Old -and $Old.現場の照合) { foreach ($a in @($Old.現場の照合.当たった品)) { $d0 = Get-NichijiG ([string]$a.根拠.日時); if ($d0 -and (-not $konkyoAt -or $d0 -gt $konkyoAt)) { $konkyoAt = $d0 } } }
++    if (-not $konkyoAt -and $Old) { $konkyoAt = Get-NichijiG ([string]$Old.現場の記録) }
++    if (-not $konkyoAt -and $Old) { $konkyoAt = Get-NichijiG ([string]$Old.日時) }
++    foreach ($t in @($Ittap)) {
++        if (-not $t -or [string]$t.種別 -notin @('取消', '数量変更')) { continue }
++        if ([string]$t.案件ID -ne $Id) { continue }
++        if ([string]$t.相手 -and [string]$t.相手 -ne $Aite) { continue }
++        $tAt = Get-NichijiG ([string]$t.日時)
++        if ($konkyoAt -and $tAt -and $tAt -le $konkyoAt) { continue }
++        return [pscustomobject]@{ 種類 = [string]$t.種別; 日時 = [string]$t.日時; だれが = [string]$t.だれが; もとの発言 = [string]$t.もとの発言 }
++    }
++    foreach ($n in @($Naoshi)) {
++        if (-not $n -or [string]$n.種別 -ne '頼んだ分を減らした') { continue }
++        if ([string]$n.行.頼む先 -ne $Aite) { continue }
++        $nAt = $null; try { $nAt = [datetime]([string]$n.いつ) } catch {}
++        if ($konkyoAt -and $nAt -and $nAt -le $konkyoAt) { continue }
++        return [pscustomobject]@{ 種類 = '頼んだ分を減らした'; 日時 = [string]$n.いつ; だれが = [string]$n.誰が; もとの発言 = [string]$n.ファイル }
++    }
++    return $null
++}
++
++# 状態を決める。戻すのは取消・訂正の記録と人の［戻す］だけ。根拠が消えた・読めない・取り込み漏れでは完了を戻さない
++function Resolve-GenbaState {
++    param([string]$State, $Old, $Hantei, $Torikeshi = $null, [string]$Naka = '', [bool]$NyuuguchiOK = $true, [string]$Ima = '')
++    if (-not $Ima) { $Ima = (Get-Date -Format 'yyyy-MM-dd HH:mm') }
++    $sh = $(if ($Old) { $Old.現場の照合 } else { $null })
++    $res = [ordered]@{ 状態 = $State; 現場の記録 = [string]$(if ($Old) { $Old.現場の記録 } else { '' }); 現場の照合 = $sh; 理由 = '' }
++    if (-not $NyuuguchiOK) { $res.理由 = '入口が読めない回＝変えない'; return [pscustomobject]$res }
++    $hz = $(if ($Old) { $Old.現場の判定を外した } else { $null })
++    $hzAt = $(if ($hz) { Get-NichijiG ([string]$hz.日時) } else { $null })
++    $mk = {
++        param($h, [string]$kubun)
++        [pscustomobject][ordered]@{ 区分 = $kubun; 数 = '未確認'; 当たった品 = @($h.当たった | ForEach-Object { [pscustomobject][ordered]@{ 品 = $_.品; 核 = $_.核; 根拠 = $_.根拠 } }); 当たらない品 = @($h.当たらない); 決めた日時 = $Ima }
++    }
++    $kirokuOf = {
++        param($h)
++        $k0 = @($h.当たった | Select-Object -First 1)[0].根拠
++        $atama = $(if ($k0.種類 -eq '1タップ' -and $k0.決め方 -eq 'ボタン') { '本人が押しました ' } elseif ($k0.種類 -eq '1タップ') { '本人の発言から読み取り・押されていません ' } else { 'LINE ' })
++        '現場が発注済み（' + $atama + [string]$k0.日時 + '・' + [string]$k0.だれが + '）'
++    }
++    switch ($State) {
++        '候補' {
++            if ($Hantei.区分 -eq '無し') { $res.理由 = '当たる記録なし'; break }
++            if ($hzAt) {
++                # 人が［戻す］で外した後は、その時までの根拠では当て直さない。外した後に来た根拠だけを数える
++                $shin = @($Hantei.当たった | Where-Object { $d1 = Get-NichijiG ([string]$_.根拠.日時); $d1 -and $d1 -gt $hzAt })
++                if (-not $shin.Count) { $res.理由 = '人が外した時までの根拠だけ＝当て直さない'; break }
++            }
++            if ($Hantei.区分 -eq '全品') { $res.状態 = '現場が発注済み'; $res.現場の照合 = (& $mk $Hantei '全品の品名が一致（数は未確認）'); $res.現場の記録 = (& $kirokuOf $Hantei); $res.理由 = '全品の品名が一致' }
++            else { $res.状態 = '一部は現場が発注済み'; $res.現場の照合 = (& $mk $Hantei '一部の品名が一致'); $res.現場の記録 = ('一部は' + (& $kirokuOf $Hantei)); $res.理由 = '一部の品名が一致＝下書きを作らない' }
++        }
++        '現場が発注済み' {
++            if ($Torikeshi) { $res.状態 = '現場の発注が取り消された・確かめ待ち'; $res.現場の記録 = ('取消・訂正が届いた（' + $Torikeshi.種類 + ' ' + $Torikeshi.日時 + '・' + $Torikeshi.だれが + '）＝前の記録：' + [string]$res.現場の記録); $res.理由 = '明示的な取消・訂正'; break }
++            $res.理由 = '完了のまま（根拠が見えなくても戻さない）'
++            if (-not $sh -and $Hantei.区分 -eq '全品') { $res.現場の照合 = (& $mk $Hantei '全品の品名が一致（数は未確認）') }   # 今までの行に照合を足すだけ。状態は変えない
++        }
++        '一部は現場が発注済み' {
++            if ($Torikeshi) { $res.状態 = '現場の発注が取り消された・確かめ待ち'; $res.理由 = '明示的な取消・訂正'; break }
++            if ($Hantei.区分 -eq '全品') { $res.状態 = '現場が発注済み'; $res.現場の照合 = (& $mk $Hantei '全品の品名が一致（数は未確認）'); $res.現場の記録 = (& $kirokuOf $Hantei); $res.理由 = '残りの品も当たった'; break }
++            # 済んだ品（前に当たった品）が予定から全部外れた時だけ、残りを下書きにできる候補へ戻す。根拠が消えただけ（期間経過など）では戻さない
++            $flat = ([string]$Naka -replace '[【】（）\(\)○◎●・※\s　]', '')
++            $mae = @(if ($sh) { @($sh.当たった品 | ForEach-Object { [string]$_.核 } | Where-Object { $_ }) })
++            $nokori = @($mae | Where-Object { $flat.Contains($_) })
++            if ($mae.Count -and -not $nokori.Count) { $res.状態 = '候補'; $res.現場の記録 = ('済んだ品は予定から外した（' + (@($sh.当たった品 | ForEach-Object { [string]$_.品 }) -join '・') + '）'); $res.理由 = '済んだ品が予定から外れた＝残りだけ下書きにできる' }
++            else { $res.理由 = '済んだ品がまだ予定に残っている＝止めたまま' }
++        }
++        default { $res.理由 = '触らない状態' }   # 送った・電話した・不要・倉庫から出した・下書き済・取消の確かめ待ち・止まっている状態＝今と同じく触らない
++    }
++    return [pscustomobject]$res
++}
++
++# 会期が終わった催事か（会期終了の日の翌日から）。会期終了が読めない時は false（今までどおり）
++function Test-KaikiOwatta {
++    param($Doc, [datetime]$Today = (Get-Date).Date)
++    $e = $null; try { $e = ([datetime][string]$Doc.会期終了).Date } catch { return $false }
++    return ($e -lt $Today.Date)
++}
+diff -uN a/line_hacchu_import.py b/line_hacchu_import.py
+--- a/line_hacchu_import.py	2026-10-31 09:19:27.754574650 +0000
++++ b/line_hacchu_import.py	2026-10-31 09:19:27.771037104 +0000
+@@ -198,11 +198,15 @@
+     if os.path.exists(OUT):
+         try:
+             mae = json.load(io.open(OUT, encoding="utf-8-sig"))
++            if not isinstance(mae, dict) or "発注完了" not in mae:
++                raise ValueError("発注完了の欄が無い")
+             for r in (mae.get("発注完了") or []):
+                 if r.get("出どころ") and r.get("出どころ") != "まとめ":
+                     hoka.append(r)
+-        except Exception:
+-            hoka = []
++        except Exception as e:
++            # 2026-10-31 草案（発注チェーンの点検 項目3）：前回の記録が読めない時は上書きしない（1タップ由来の行を黙って消さない）。止めて人に上げる
++            print("⛔ 前回の記録が読めないので書き換えません：%s（%s）" % (OUT, e))
++            return 3
+     for r in rows_done:
+         r["出どころ"] = "まとめ"          # LINEのまとめから拾った＝写し。数量は使わない
+     rows_done = hoka + rows_done
+diff -uN a/make_order_drafts.ps1 b/make_order_drafts.ps1
+--- a/make_order_drafts.ps1	2026-10-31 09:19:27.742117056 +0000
++++ b/make_order_drafts.ps1	2026-10-31 09:19:27.761318626 +0000
+@@ -35,6 +35,10 @@
+     [string]$Label = '',
+     [string]$Only = '',
+     [string]$FixPath = '',   # 2026-09-30 確認\〈案件ID〉.json。担当者が「修正あり」で直した一覧を本文に反映する（反映できなければ下書きを作らない）
++    [string]$ShuseiAtsukai = '',   # 2026-10-31 草案（発注チェーンの点検・本番未投入） 項目5：人が決めた修正の扱い（注文／報告）
++    [string]$ShuseiKagi = '',   # その決めがどの答え（確認の 答えた日時）に対してか。違えば効かない
++    [string]$ShuseiZenkai = '',   # 前の回の台帳の 担当者の確認.反映
++    [string]$ShuseiZenkaiKagi = '',   # 前の回の台帳の 担当者の確認.答えた日時
+     [string]$NaoshiDir = '',   # 2026-10-07 発注案\予定の直し。鍵を持つ人が窓で直した行（確認\〈案件ID〉.json の候補の品目と同じ形）を、担当者の修正の後・供給上限の前に、同じ反映（Reflect-Rows）で当てる
+     [string]$SentJson = '',   # 2026-10-08 もう送った相手→送った時の中身（JSON）。倉庫の引当で、送った数より下へ本文を削らない
+     [string]$DashitaJson = '',   # 2026-10-16 倉庫出しの行がもう「倉庫から出した」の催事＝その行の引き当て（JSON の配列）。倉庫の今を見ず、出した量だけを当てる
+@@ -463,6 +467,7 @@
+     # 0c/s で全部消えた相手は送らない（倉庫出しと同じ扱い）
+     foreach ($x in $mails) { if ($fixTouched.ContainsKey([string]$x.Name) -and $x.Body -and -not @($x.Body -split "`r?`n" | Where-Object { $_.Trim().StartsWith('・') }).Count) { $x.Send = '送らない' } }
+ }
++. (Join-Path $PSScriptRoot 'shusei_hantei.ps1')   # 2026-10-31 草案（発注チェーンの点検・本番未投入） 項目5
+ $fixState = '対象外'; $fixDone = @(); $fixNote = @(); $fixTouched = @{}
+ $mojiChumon = @()   # 2026-10-29 13枚目：下書きに入れられない文字の注文（字・頼む先・理由）。催事は止めず、台帳 修正の反映.文字の注文 に書いて熊田さんの画面と朝の知らせに出す
+ $handSouko = @()   # 2026-10-06 人が読む行のうち、頼む先が「倉庫出し」のもの（倉庫出しの便は下で作るので、そこで足す）
+@@ -475,12 +480,27 @@
+             # 2026-10-14 AIかおり 19：段階が「済」でない＝担当者の確認が途中（マネキン・個人手配の段）。止まりではない＝反映できないと書かない
+             $fixState = '確認の途中'
+         } else {
+-            Reflect-Rows @($fx.候補の品目) '確認'
+-            # 2026-10-01 「修正あり」と押されたのに、直った数量が1つも無いなら止める。
+-            #   由来＝田中さんがページを送らないまま LINE で「あべのハルカス九州展の日程は？」と質問し、**質問文が修正リストとして飲み込まれて「済」まで進んだ**。
+-            #   品目は元の案と同じ23件だったので「直した品目0件＝反映した」と判定し、5,000,000円の発注が下書き可になっていた（AIかおり fork 5 の連絡で発覚・下書きは0通）。
+-            if (-not $fixNote.Count -and -not $fixDone.Count -and -not $mojiChumon.Count) { $fixNote += ('「修正あり」なのに直った数量が1つもありません（修正リスト＝「' + [string]$fx.修正リスト原文 + '」）。人が中身を読んでください') }
+-            if (-not $fixNote.Count) { $fixState = '反映した' }
++            # 2026-10-31 草案（発注チェーンの点検・本番未投入） 項目5：修正の字に「出庫・持ち出し」などの語がある＝倉庫から持ち出した報告か注文か分からない。語だけで捨てない。
++            #   人が発注ボードで［注文として当てる］［報告なので当てない］を押すまで、数を変えずに「確かめ待ち」で止める（下書きも作らない）。
++            #   前の回にもう当てていた答え（送った相手がいる）なら、その数のまま止める＝今の数を動かさない
++            $skb = Get-ShuseiKubun ([string]$fx.修正リスト原文)
++            $skKagi = [string]$fx.答えた日時
++            $skKimeta = ([bool]$ShuseiAtsukai -and $ShuseiKagi -eq $skKagi)
++            if ($skb.区分 -eq '確かめ待ち' -and $skKimeta -and $ShuseiAtsukai -eq '報告') {
++                $fixState = '反映しない（報告と確かめた）'; $fixDone += '修正の字は倉庫から持ち出した報告と確かめた＝数は変えない'
++            } elseif ($skb.区分 -eq '確かめ待ち' -and -not $skKimeta) {
++                $zenkaiAri = ($ShuseiZenkaiKagi -eq $skKagi -and ($ShuseiZenkai -eq '反映した' -or $ShuseiZenkai -like '確かめ待ち（*反映済みの数のまま）'))
++                if ($zenkaiAri) { Reflect-Rows @($fx.候補の品目) '確認' }
++                $fixState = $(if ($zenkaiAri) { '確かめ待ち（報告か注文か・反映済みの数のまま）' } else { '確かめ待ち（報告か注文か）' })
++                $fixNote += ('修正の字に「' + (@($skb.出庫の語) -join '・') + '」がある＝倉庫から持ち出した報告か、注文か分からない' + $(if (@($skb.注文の語).Count) { '（「' + (@($skb.注文の語) -join '・') + '」の語もある）' } else { '' }) + '。数は変えていない。発注ボードで［注文として当てる］か［報告なので当てない］を押す')
++            } else {
++                Reflect-Rows @($fx.候補の品目) '確認'
++                # 2026-10-01 「修正あり」と押されたのに、直った数量が1つも無いなら止める。
++                #   由来＝田中さんがページを送らないまま LINE で「あべのハルカス九州展の日程は？」と質問し、**質問文が修正リストとして飲み込まれて「済」まで進んだ**。
++                #   品目は元の案と同じ23件だったので「直した品目0件＝反映した」と判定し、5,000,000円の発注が下書き可になっていた（AIかおり fork 5 の連絡で発覚・下書きは0通）。
++                if (-not $fixNote.Count -and -not $fixDone.Count -and -not $mojiChumon.Count) { $fixNote += ('「修正あり」なのに直った数量が1つもありません（修正リスト＝「' + [string]$fx.修正リスト原文 + '」）。人が中身を読んでください') }
++                if (-not $fixNote.Count) { $fixState = '反映した' }
++            }
+         }
+     } elseif ($fx -and [string]$fx.候補の答え -eq 'OK' -and [string]$fx.確認の段階 -eq '済' -and @($fx.候補の品目).Count) {
+         # 2026-10-12 ★10/11 玉井さん「候補は担当者が確認するまで精度を上げ続けて良い。確認後は検討段階なので数字を変えてはならない」（11代目ボス裁定）
+@@ -1167,7 +1187,8 @@
+     "候補: $CandidatesPath（$($cands.Count)件）"
+ }
+ # 担当者の修正を反映できていないのに下書きを作ろうとしたら、ここで止める（台帳の 下書き可＝false と二重の歯止め）
+-if ($fixState -eq '反映できない' -and -not $NoDrafts) { throw ('担当者の修正を反映できないので下書きは作りません：' + (($fixNote | Select-Object -First 3) -join '／')) }
++# 2026-10-31 草案 項目5：確かめ待ちも下書きを作らない
++if (($fixState -eq '反映できない' -or $fixState -like '確かめ待ち*') -and -not $NoDrafts) { throw ('担当者の修正を反映できないので下書きは作りません：' + (($fixNote | Select-Object -First 3) -join '／')) }
+ if ($naoshiState -eq '反映できない' -and -not $NoDrafts) { throw ('予定の直しを反映できないので下書きは作りません：' + (($naoshiNote | Select-Object -First 3) -join '／')) }   # 2026-10-07
+ 
+ # 2) FAX の発注書 PDF（ヒロツク）
+diff -uN a/process_budget_files.ps1 b/process_budget_files.ps1
+--- a/process_budget_files.ps1	2026-10-31 09:19:27.738117055 +0000
++++ b/process_budget_files.ps1	2026-10-31 09:19:27.758062532 +0000
+@@ -38,17 +38,27 @@
+ $naoshiDir = Join-Path $planDir '予定の直し'   # 2026-10-07 鍵を持つ人が窓で直した行（1直し＝1ファイル）。玉井さん「発注の予定＝鍵のかかった箱」
+ New-Item -ItemType Directory -Force $naoshiDir | Out-Null
+ # 2026-10-23 穴A（24代目ボスの裁定）：熊田さんが「確かめること」で押した［メールの数］［発注ボードの数］（board_action lineok・鍵「送った中身|〈案件ID〉|〈相手〉|メール／ボード」）を読む。書き手は board_action・読み手はここだけ
+-$lineOkKeysPBF = @(); try { $lokP = Join-Path $planDir '_LINE依頼の確認済み.json'; if (Test-Path $lokP) { $lineOkKeysPBF = @(@((Get-Content $lokP -Raw -Encoding UTF8 | ConvertFrom-Json).確認済み) | ForEach-Object { [string]$_.鍵 }) } } catch {}
+-if (Test-Path $genbaPath) {
+-    try { $genba = @((Get-Content $genbaPath -Raw -Encoding UTF8 | ConvertFrom-Json).発注完了) } catch { $genba = @() }
++# 2026-10-31 草案（発注チェーンの点検・本番未投入） 項目3：入口のファイルが「無い」と「読めない」を分ける。0バイト・欄が無い・JSON が壊れている＝読めない。
++#   読めない回は台帳を1つも書き換えない（下の $yosanFiles を空にする）。空として続けると、完了の戻し・「LINEで報告あり」の印の消え・指紋の変化による作り直しが全部の台帳に起きる
++. (Join-Path $PSScriptRoot 'genba_hantei.ps1')
++$nyuuguchiNG = @()
++function Read-Nyuuguchi([string]$path, [string]$ran) {
++    if (-not (Test-Path $path)) { return @{ ok = $true; aru = $false; v = @() } }
++    try { $o = Get-Content $path -Raw -Encoding UTF8 | ConvertFrom-Json } catch { return @{ ok = $false; aru = $true; v = @() } }
++    if ($null -eq $o -or -not (@($o.PSObject.Properties.Name) -contains $ran)) { return @{ ok = $false; aru = $true; v = @() } }
++    return @{ ok = $true; aru = $true; v = @($o.$ran) }
+ }
++$lokP = Join-Path $planDir '_LINE依頼の確認済み.json'
++$rk = Read-Nyuuguchi $lokP '確認済み'; if (-not $rk.ok) { $nyuuguchiNG += '_LINE依頼の確認済み.json' }
++$lineOkKeysPBF = @($rk.v | Where-Object { $_ } | ForEach-Object { [string]$_.鍵 })
++$rg = Read-Nyuuguchi $genbaPath '発注完了'; if (-not $rg.ok) { $nyuuguchiNG += '_LINEで発注済み.json' }
++$genba = @($rg.v | Where-Object { $_ })
+ function Norm-Venue([string]$s) { return ([string]$s -replace '[\s　㈱株式会社（）\(\)]', '') }
+ # 2026-09-28 1タップ（本人が押した事実）。まとめ（推測）より優先する。ファイルが無ければ今までどおり推測だけで判定する
+ $ittap = @()
+ $ittapPath = Join-Path $planDir '_LINEで1タップ.json'
+-if (Test-Path $ittapPath) {
+-    try { $ittap = @((Get-Content $ittapPath -Raw -Encoding UTF8 | ConvertFrom-Json).行) } catch { $ittap = @() }
+-}
++$ri = Read-Nyuuguchi $ittapPath '行'; if (-not $ri.ok) { $nyuuguchiNG += '_LINEで1タップ.json' }   # 2026-10-31 草案（発注チェーンの点検・本番未投入） 項目3
++$ittap = @($ri.v | Where-Object { $_ })
+ function Ittap-Done([string]$id, [string]$venue, [string]$naka, [string]$aite = '') {
+     $v = Norm-Venue $venue
+     foreach ($t in $ittap) {
+@@ -191,7 +201,10 @@
+ }
+ # 2026-09-30 会期が早い順に回す。倉庫の引当は「自分より前に始まる催事が押さえている分」を、ほかの台帳を読んで引く作りなので、
+ #   遅い催事を先に回すと、早い催事の**古い台帳**を見て多く取ってしまう（実際に和歌山が井上の8kgを見落として10kg取り、合計18kg＞在庫13.3kgになった）。
+-foreach ($f in (Get-ChildItem $InDir -Filter *.json -ErrorAction SilentlyContinue | Sort-Object Name)) {
++# 2026-10-31 草案（発注チェーンの点検・本番未投入） 項目3：入口が読めない回は保留＝どの台帳も書き換えない（指紋も変えない＝読めた次の回でまとめて作り直す）
++$yosanFiles = @(Get-ChildItem $InDir -Filter *.json -ErrorAction SilentlyContinue | Sort-Object Name)
++if ($nyuuguchiNG.Count) { $report += ('⛔ 入口のファイルが読めないので、今回は台帳を1つも書き換えません（保留）：' + ($nyuuguchiNG -join '・') + '。読めるようになった次の回でまとめて作り直します'); $yosanFiles = @() }
++foreach ($f in $yosanFiles) {
+     # 2026-10-09 調査（10代目ボス）：try が無く、壊れた予算ファイル1つで全体が止まり記録0行になっていた＝1ファイルずつ守る
+     try {
+     $j = Get-Content $f.FullName -Raw -Encoding UTF8 | ConvertFrom-Json
+@@ -210,6 +223,9 @@
+     $naF = Join-Path $PSScriptRoot '確認に無い品は頼まない.json'; if (Test-Path $naF) { $finger += '|無い品' + (Get-Item $naF).LastWriteTime.ToString('s') }   # 2026-10-09 確認に無い品を0にする催事を決めたら作り直す
+     # 2026-09-24 現場の発注（LINE）も「変わったか」に入れる。入れないと熊田さんの「発注完了」が届いても台帳が作り直されず、「現場が発注済み」が永久に付かない
+     if (Test-Path $genbaPath) { $finger += '|現場' + (Get-Item $genbaPath).LastWriteTime.ToString('s') }
++    # 2026-10-31 草案（発注チェーンの点検・本番未投入） 項目4：1タップの記録が変わった時も作り直す（今は「LINEで発注済み」が毎回書き直されるので隠れているだけ）。確認済みの鍵も同じ型
++    if (Test-Path $ittapPath) { $finger += '|1タップ' + (Get-Item $ittapPath).LastWriteTime.ToString('s') }
++    if (Test-Path $lokP) { $finger += '|確認済み' + (Get-Item $lokP).LastWriteTime.ToString('s') }
+     # 2026-09-25 玉井さん：学問のするめも、クシローと同じように予算→候補→下書きまで通す。屋号ごとの商品マスターがあれば対象にする
+     #   ファイルが無い屋号は今までどおり対象外＝作りかけの屋号で空の発注案ができないようにする
+     $yagoBook = Join-Path $PSScriptRoot ('商品マスター_' + [string]$j.屋号 + '.xlsx')
+@@ -294,6 +310,9 @@
+     $candPath = Join-Path $env:TEMP ('cand_' + ($id -replace '[^\w\-]', '_') + '.json')
+     $prm.CandidatesPath = $candPath
+     if ($kk) { $prm.FixPath = $kkPath }   # 2026-09-30 「修正あり」の中身を本文に反映させる（反映できなければ候補の側で止まる）
++    # 2026-10-31 草案（発注チェーンの点検・本番未投入） 項目5：人が決めた修正の扱い（注文／報告）と、前の回の反映の状態を渡す（make_order_drafts が「確かめ待ち」を決める）
++    if ($ledger -and $ledger.修正の扱い) { $prm.ShuseiAtsukai = [string]$ledger.修正の扱い.扱い; $prm.ShuseiKagi = [string]$ledger.修正の扱い.答えた日時 }
++    if ($ledger -and $ledger.担当者の確認) { $prm.ShuseiZenkai = [string]$ledger.担当者の確認.反映; $prm.ShuseiZenkaiKagi = [string]$ledger.担当者の確認.答えた日時 }
+     $prm.NaoshiDir = $naoshiDir   # 2026-10-07 予定の直し（担当者の修正の後・供給上限の前に、同じ反映で当てる）
+     if ($taigai.ContainsKey($id)) { $prm.Taishougai = $true }   # 2026-09-30 仕組みの対象外＝倉庫を押さえない（ほかの催事が使える）
+     & $engine @prm | ForEach-Object { $report += "  $_" }
+@@ -305,7 +324,8 @@
+     $fixNG = ''
+     if ($kakunin -eq '修正あり') {
+         $fs = [string]$c.修正の反映.状態
+-        if ($fs -ne '反映した') { $fixNG = '担当者の修正を反映できていない（' + $(if ($c.修正の反映.できない理由) { (@($c.修正の反映.できない理由) | Select-Object -First 2) -join '／' } else { $fs }) + '）' }
++        # 2026-10-31 草案 項目5：報告と人が確かめた時は数を変えずに先へ
++        if ($fs -notin @('反映した', '反映しない（報告と確かめた）')) { $fixNG = '担当者の修正を反映できていない（' + $(if ($c.修正の反映.できない理由) { (@($c.修正の反映.できない理由) | Select-Object -First 2) -join '／' } else { $fs }) + '）' }
+     } elseif ($kakunin -eq 'OK' -and [string]$c.修正の反映.状態 -eq '反映できない') {
+         # 2026-10-12 ★10/11「確認後は数字を変えない」：OK でも確認の数を当てる（make_order_drafts）。当てられない時は下書きを作らない
+         $fixNG = '担当者が確認した数を当てられない（' + ((@($c.修正の反映.できない理由) | Select-Object -First 2) -join '／') + '）'
+@@ -340,19 +360,22 @@
+         $okuru = ''; try { $okuru = ([datetime]$prm.DeliveryDate).AddDays(-(Lead-Days ([string]$x.相手))).ToString('yyyy-MM-dd') } catch {}
+         if ($x.方法 -eq '倉庫出し' -and $soukoDasuHi.ContainsKey($id)) { $okuru = $soukoDasuHi[$id] } else { $okuru = Mae-Eigyoubi $okuru }   # 2026-10-07 土日祝は前の営業日・倉庫出しは出荷の板の出す日
+         # 現場が先に発注していたら、下書きを作らせない（二重発注を止める）。まだ「候補」の行だけが対象＝人が押した状態は上書きしない
++        # 2026-10-31 草案（発注チェーンの点検・本番未投入） 項目1・2（第12版「品×出来事ごと」・決10「受付と成立を分ける」）：
++        #   品ごとに当てる。全品が当たった時だけ「現場が発注済み」（数は未確認）。一部だけなら「一部は現場が発注済み」で止める＝下書きを作らない（済んだ品を二重に頼まない）。
++        #   根拠が見えなくなっても完了は戻さない（期間経過・読み込み失敗・取り込み漏れ）。動くのは取消・訂正の記録と人の［戻す］だけ。照合は90字で切った中身でなく全文で
+         $genbaNote = [string]$(if ($o) { $o.現場の記録 } else { '' })
+-        if (($state -eq '候補' -or $state -eq '現場が発注済み') -and $x.方法 -ne '倉庫出し') {
+-            $g = Ittap-Done $id ([string]$j.会場) ([string]$x.中身) ([string]$x.相手)      # まず「押した事実」を見る
+-            if (-not $g) { $g = Genba-Done ([string]$j.会場) ([string]$x.中身) $id }   # 無ければ「まとめからの推測」
+-            if ($g) {
+-                if ($state -ne '現場が発注済み') { $when = (Get-Date -Format 'yyyy-MM-dd HH:mm') }
+-                $state = '現場が発注済み'; $genbaNote = $g
+-            } elseif ($state -eq '現場が発注済み') {
+-                # 元になったLINEの記録が消えた（取り消し・読み直し）→ 候補に戻す。印を永久に残さない
+-                $state = '候補'; $genbaNote = ''; $when = ''
+-            }
++        $genbaShougou = $(if ($o) { $o.現場の照合 } else { $null })
++        if (($state -eq '候補' -or $state -eq '現場が発注済み' -or $GENBA_HOLD -contains $state) -and $x.方法 -ne '倉庫出し') {
++            $xZenG = $(if ([string]$x.中身全文) { [string]$x.中身全文 } else { [string]$x.中身 })
++            $hantei = Get-GenbaHantei -Id $id -Venue ([string]$j.会場) -Naka $xZenG -Aite ([string]$x.相手) -Ittap $ittap -Genba $genba
++            $tori = Get-GenbaTorikeshi -Id $id -Aite ([string]$x.相手) -Ittap $ittap -Naoshi @($c.予定の直し.一覧) -Old $o
++            $gr = Resolve-GenbaState -State $state -Old $o -Hantei $hantei -Torikeshi $tori -Naka $xZenG
++            if ($gr.状態 -ne $state) { $when = (Get-Date -Format 'yyyy-MM-dd HH:mm') }
++            $state = $gr.状態; $genbaNote = [string]$gr.現場の記録; $genbaShougou = $gr.現場の照合
+         }
+         $row = [ordered]@{ 相手 = $x.相手; 方法 = $x.方法; 中身 = $x.中身; 中身全文 = [string]$(if ($x.中身全文) { $x.中身全文 } else { $x.中身 }); 宛先 = $x.宛先; 送る日 = $okuru; 状態 = $state; 日時 = $when; 現場の記録 = $genbaNote; EntryID = $eid; StoreID = $sid; 件名 = $subj; 旧下書き = @($olds | Where-Object { $_ }); 引き当て = @($x.引き当て | Where-Object { $_ -and $_.品目コード }) }   # 2026-09-30 引き当て＝催事の残りから当てた分（空の辞書を入れない）
++        if ($genbaShougou) { $row.現場の照合 = $genbaShougou }   # 2026-10-31 草案（発注チェーンの点検・本番未投入） 項目1：当たった品・当たらない品・数の確かめ
++        if ($o -and $o.現場の判定を外した) { $row.現場の判定を外した = $o.現場の判定を外した }   # 2026-10-31 草案（発注チェーンの点検・本番未投入） 項目2：人が［戻す］で外した印（board_action だけが書く）
+         # 2026-10-23 24代目ボスの裁定：倉庫出しの行がまだ「候補」で、LINE に熊田さんの「発送します」等（1タップ 倉庫から出した）があれば「LINEで報告あり」の印を出す（状態は変えない・毎回作り直す）
+         if ($x.方法 -eq '倉庫出し' -and $state -eq '候補') { $hk = Ittap-SoukoHoukoku $id ([string]$j.会場); if ($hk) { $row.LINEで報告あり = $hk } }
+         # 2026-10-16 もう倉庫から出した行は、中身・中身全文・引き当て・送る日を出した時のまま残す（出した事実は作り直しで変えない）。作り直しの結果と違えば知らせる
+@@ -541,6 +564,7 @@
+         指紋 = $(if ($Test) { $(if ($ledger) { $ledger.指紋 } else { '' }) } else { $finger }); 更新 = (Get-Date -Format 'yyyy-MM-dd HH:mm'); 発注案 = $plan
+     }
+     if ($kieta.Count) { $doc.消えた相手の下書き = @($kieta) }   # 2026-10-09 マニュアル係⑩（上）
++    if ($ledger -and $ledger.修正の扱い) { $doc.修正の扱い = $ledger.修正の扱い }   # 2026-10-31 草案（発注チェーンの点検・本番未投入） 項目5：board_action だけが書く。作り直しで消さない
+     [IO.File]::WriteAllText($ledgerPath, ($doc | ConvertTo-Json -Depth 8), $utf8bom)
+     $report += "$summary：$id $($j.会場) $($j.会期開始)〜$($j.会期終了) 予算$($j.売上予算) 型$($j.型) 担当$($j.担当者)（候補$($cands.Count)件）→ $ledgerPath"
+     if ($j.束の案件ID) { $report += "  束：$(@($j.束の案件ID) -join ', ')（同じ催事＝発注は1回）" }
+diff -uN a/shusei_hantei.ps1 b/shusei_hantei.ps1
+--- a/shusei_hantei.ps1	1970-01-01 00:00:00.000000000 +0000
++++ b/shusei_hantei.ps1	2026-10-31 09:19:27.775260588 +0000
+@@ -0,0 +1,12 @@
++# shusei_hantei.ps1 — 担当者の「修正あり」の字が、注文か、倉庫から持ち出した報告かを見分ける（曖昧なら確かめ待ち）
++# 2026-10-31 草案（発注チェーンの点検 項目5・本番未投入）。語だけで却下しない。出庫の語が1つでもあれば、注文の語があっても「確かめ待ち」（数を変えない）
++#   由来＝フレスト天満 11/12：尾崎さんの字の最後が「倉庫から出庫しました！」なのに、9品の数を直して反映し、阿川食品へ送られた（10/29〜10/30）
++$SHUKKO_GO = @('出庫', '持ち出', '持出', '持って行', '持っていき', '持参', '倉庫から出', '倉庫より出', '運びました', '移動しました', '移しました')
++$CHUMON_GO = @('追加', '注文', '発注', 'お願い', '頼み', '頼んで', '足して', '増やして')
++function Get-ShuseiKubun([string]$Text) {
++    $s = [string]$Text
++    $shukko = @($SHUKKO_GO | Where-Object { $s.Contains($_) })
++    $chumon = @($CHUMON_GO | Where-Object { $s.Contains($_) })
++    $kubun = $(if ($shukko.Count) { '確かめ待ち' } else { '通常' })
++    return [pscustomobject]@{ 区分 = $kubun; 出庫の語 = $shukko; 注文の語 = $chumon }
++}
